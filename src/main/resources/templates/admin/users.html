@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 教务管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/htmx.min.js"></script>
+</head>
+<body>
+
+<div class="sakura-container">
+    <div class="sakura" style="left: 5%; animation-duration: 12s; animation-delay: 0s; --size: 20px;"></div>
+    <div class="sakura" style="left: 18%; animation-duration: 14s; animation-delay: 2s; --size: 16px;"></div>
+    <div class="sakura" style="left: 35%; animation-duration: 11s; animation-delay: 4s; --size: 22px;"></div>
+    <div class="sakura" style="left: 52%; animation-duration: 15s; animation-delay: 1s; --size: 18px;"></div>
+    <div class="sakura" style="left: 70%; animation-duration: 13s; animation-delay: 3s; --size: 24px;"></div>
+    <div class="sakura" style="left: 85%; animation-duration: 16s; animation-delay: 5s; --size: 20px;"></div>
+</div>
+
+<div class="page-wrapper">
+    <div th:replace="fragments :: navbar"></div>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>👥 用户管理</h2>
+            <p>管理系统中的所有用户账号</p>
+        </div>
+
+        <div id="users-table" class="table-wrapper">
+            <div style="text-align:center; padding:40px; color:var(--text-lighter);">⏳ 加载中...</div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="fragments :: scripts"></div>
+
+<script>
+function authHeader() {
+    var token = localStorage.getItem('jwxt_token');
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
+function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function roleBadge(role) {
+    var label = role === 'ADMIN' ? '管理员' : (role === 'TEACHER' ? '教师' : '学生');
+    return '<span class="badge" style="background:var(--pink-lighter); color:var(--pink-deep);">' + label + '</span>';
+}
+
+async function loadUsers() {
+    var container = document.getElementById('users-table');
+    try {
+        var resp = await fetch('/api/admin/users', { headers: authHeader() });
+        var data = await resp.json();
+        if (data.code !== 200 || !data.data || data.data.length === 0) {
+            container.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>暂无用户</p></div>';
+            return;
+        }
+        var users = data.data;
+        var html = '<table><thead><tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>邮箱</th><th>手机</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
+        for (var i = 0; i < users.length; i++) {
+            var u = users[i];
+            html += '<tr>';
+            html += '<td>' + u.id + '</td>';
+            html += '<td><strong>' + esc(u.username) + '</strong></td>';
+            html += '<td>' + esc(u.name) + '</td>';
+            html += '<td>' + roleBadge(u.role) + '</td>';
+            html += '<td>' + (u.email ? esc(u.email) : '-') + '</td>';
+            html += '<td>' + (u.phone ? esc(u.phone) : '-') + '</td>';
+            html += '<td>';
+            html += u.enabled
+                ? '<span style="color:#4CAF50; font-weight:600;">正常</span>'
+                : '<span style="color:#D44; font-weight:600;">已禁用</span>';
+            html += '</td>';
+            html += '<td style="font-size:13px; color:var(--text-lighter);">' + (u.createdAt ? new Date(u.createdAt).toLocaleDateString('zh-CN') : '-') + '</td>';
+            html += '<td>';
+            if (u.enabled) {
+                html += '<button class="btn btn-sm btn-danger" onclick="toggleStatus(' + u.id + ', false)">禁用</button>';
+            } else {
+                html += '<button class="btn btn-sm btn-success" onclick="toggleStatus(' + u.id + ', true)">启用</button>';
+            }
+            html += '</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<div class="empty-state"><span class="empty-icon">❌</span><p>加载失败</p></div>';
+    }
+}
+
+async function toggleStatus(userId, enabled) {
+    var action = enabled ? '启用' : '禁用';
+    if (!confirm('确定要' + action + '该用户吗？')) return;
+    try {
+        var resp = await fetch('/api/admin/users/' + userId + '/status', {
+            method: 'PUT',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+            body: JSON.stringify({ enabled: enabled })
+        });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert('用户已' + action, 'success');
+            loadUsers();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+loadUsers();
+</script>
+
+</body>
+</html>

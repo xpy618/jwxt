@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的课表 - 教务管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/htmx.min.js"></script>
+</head>
+<body>
+
+<div class="sakura-container">
+    <div class="sakura" style="left: 5%; animation-duration: 12s; animation-delay: 0s; --size: 20px;"></div>
+    <div class="sakura" style="left: 18%; animation-duration: 14s; animation-delay: 2s; --size: 16px;"></div>
+    <div class="sakura" style="left: 35%; animation-duration: 11s; animation-delay: 4s; --size: 22px;"></div>
+    <div class="sakura" style="left: 52%; animation-duration: 15s; animation-delay: 1s; --size: 18px;"></div>
+    <div class="sakura" style="left: 70%; animation-duration: 13s; animation-delay: 3s; --size: 24px;"></div>
+    <div class="sakura" style="left: 85%; animation-duration: 16s; animation-delay: 5s; --size: 20px;"></div>
+</div>
+
+<div class="page-wrapper">
+    <div th:replace="fragments :: navbar"></div>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>📅 我的课表</h2>
+            <p>本学期课程安排一览</p>
+        </div>
+
+        <div id="schedule-content">
+            <div style="text-align:center; padding:40px; color:var(--text-lighter);">⏳ 加载中...</div>
+        </div>
+
+        <div style="margin-top: 32px;">
+            <div class="card">
+                <h3 style="margin-bottom:16px; font-size:16px;">📋 课程列表</h3>
+                <div id="course-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="fragments :: scripts"></div>
+
+<script>
+var DAYS = ['周一', '周二', '周三', '周四', '周五'];
+var TIME_SLOTS = [
+    { label: '第一大节<br>08:20-10:00', start: '08:20' },
+    { label: '第二大节<br>10:20-12:00', start: '10:20' },
+    { label: '第三大节<br>14:30-16:10', start: '14:30' },
+    { label: '第四大节<br>16:30-18:10', start: '16:30' }
+];
+
+function parseSchedule(s) {
+    for (var d = 0; d < DAYS.length; d++) {
+        if (s.indexOf(DAYS[d]) === 0) {
+            var timePart = s.substring(DAYS[d].length).trim();
+            var dashIdx = timePart.indexOf('-');
+            if (dashIdx > 0) {
+                return { day: d, time: timePart.substring(0, dashIdx).trim() };
+            }
+        }
+    }
+    return null;
+}
+
+async function loadSchedule() {
+    var container = document.getElementById('schedule-content');
+    try {
+        var resp = await fetch('/api/enrollments/schedule', {
+            headers: authHeader()
+        });
+        var data = await resp.json();
+        if (data.code !== 200 || !data.data || data.data.length === 0) {
+            container.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>暂无已选课程</p></div>';
+            document.getElementById('course-list').innerHTML = '';
+            return;
+        }
+
+        var courses = data.data;
+        var grid = {};
+        for (var i = 0; i < courses.length; i++) {
+            var parsed = parseSchedule(courses[i].schedule || '');
+            if (parsed) {
+                var key = parsed.day + '-' + parsed.time;
+                grid[key] = courses[i];
+            }
+        }
+
+        var html = '<div class="schedule-grid">';
+        html += '<div class="day-header"></div>';
+        for (var d = 0; d < DAYS.length; d++) {
+            html += '<div class="day-header">' + DAYS[d] + '</div>';
+        }
+        for (var t = 0; t < TIME_SLOTS.length; t++) {
+            html += '<div class="time-label">' + TIME_SLOTS[t].label + '</div>';
+            for (var d2 = 0; d2 < DAYS.length; d2++) {
+                var k = d2 + '-' + TIME_SLOTS[t].start;
+                var course = grid[k];
+                if (course) {
+                    html += '<div class="schedule-item">';
+                    html += '<span class="s-course">' + esc(course.courseName) + '</span>';
+                    html += '<span class="s-time">' + esc(course.teacherName) + ' | ' + course.credit + '学分</span>';
+                    html += '</div>';
+                } else {
+                    html += '<div></div>';
+                }
+            }
+        }
+        html += '</div>';
+        container.innerHTML = html;
+
+        var grouped = {};
+        for (var j = 0; j < courses.length; j++) {
+            var c = courses[j];
+            if (!grouped[c.courseId]) {
+                grouped[c.courseId] = { courseName: c.courseName, teacherName: c.teacherName, credit: c.credit, schedules: [] };
+            }
+            grouped[c.courseId].schedules.push(c.schedule || '未设置');
+        }
+        var listHtml = '';
+        for (var key in grouped) {
+            var g = grouped[key];
+            listHtml += '<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,183,197,0.15);">';
+            listHtml += '<div>';
+            listHtml += '<strong>' + esc(g.courseName) + '</strong>';
+            listHtml += '<span style="margin-left:12px; font-size:13px; color:var(--text-lighter);">' + esc(g.teacherName) + '</span>';
+            listHtml += '</div>';
+            listHtml += '<span style="font-size:13px; color:var(--text-light);">' + esc(g.schedules.join('；')) + ' | ' + g.credit + '学分</span>';
+            listHtml += '</div>';
+        }
+        document.getElementById('course-list').innerHTML = listHtml;
+    } catch (e) {
+        container.innerHTML = '<div class="empty-state"><span class="empty-icon">❌</span><p>加载失败</p></div>';
+    }
+}
+
+loadSchedule();
+</script>
+
+</body>
+</html>

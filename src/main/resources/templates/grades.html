@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${role == 'STUDENT'} ? '成绩查询' : '成绩管理'">成绩 - 教务管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/htmx.min.js"></script>
+</head>
+<body>
+
+<div class="sakura-container">
+    <div class="sakura" style="left: 5%; animation-duration: 12s; animation-delay: 0s; --size: 20px;"></div>
+    <div class="sakura" style="left: 18%; animation-duration: 14s; animation-delay: 2s; --size: 16px;"></div>
+    <div class="sakura" style="left: 35%; animation-duration: 11s; animation-delay: 4s; --size: 22px;"></div>
+    <div class="sakura" style="left: 52%; animation-duration: 15s; animation-delay: 1s; --size: 18px;"></div>
+    <div class="sakura" style="left: 70%; animation-duration: 13s; animation-delay: 3s; --size: 24px;"></div>
+    <div class="sakura" style="left: 85%; animation-duration: 16s; animation-delay: 5s; --size: 20px;"></div>
+</div>
+
+<div class="page-wrapper">
+    <div th:replace="fragments :: navbar"></div>
+
+    <div class="container">
+        <!-- ===== STUDENT VIEW ===== -->
+        <th:block th:if="${role == 'STUDENT'}">
+            <div class="page-header">
+                <h2>📊 成绩查询</h2>
+                <p>查看你的课程成绩与 GPA</p>
+            </div>
+
+            <div id="gpa-card" class="card" style="margin-bottom:24px; text-align:center;">
+                <div style="display:flex; justify-content:center; align-items:center; gap:16px; flex-wrap:wrap;">
+                    <div>
+                        <select id="gpa-semester" onchange="loadGPA()" style="padding:8px 12px; border:2px solid var(--pink-light); border-radius:var(--radius-sm); font-size:14px; outline:none;">
+                            <option value="">选择学期</option>
+                        </select>
+                    </div>
+                    <div>
+                        <span style="font-size:14px; color:var(--text-lighter);">GPA：</span>
+                        <span id="gpa-value" style="font-size:28px; font-weight:700; color:var(--pink-deep);">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="grades-table" class="table-wrapper">
+                <div style="text-align:center; padding:40px; color:var(--text-lighter);">⏳ 加载中...</div>
+            </div>
+        </th:block>
+
+        <!-- ===== TEACHER VIEW ===== -->
+        <th:block th:if="${role == 'TEACHER'}">
+            <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h2>📊 成绩管理</h2>
+                    <p>录入、提交与发布学生成绩</p>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button id="btn-submit" class="btn btn-outline btn-sm" onclick="submitGrades()" disabled>提交成绩</button>
+                    <button id="btn-publish" class="btn btn-success btn-sm" onclick="publishGrades()" disabled>发布成绩</button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:24px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>选择课程</label>
+                    <select id="teacher-course-select" onchange="loadTeacherGrades()">
+                        <option value="">-- 请选择课程 --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="teacher-grades-table" class="table-wrapper">
+                <div class="empty-state"><span class="empty-icon">👆</span><p>请先选择一门课程</p></div>
+            </div>
+        </th:block>
+    </div>
+</div>
+
+<div th:replace="fragments :: scripts"></div>
+
+<script>
+var ROLE = /*[[${role}]]*/ 'STUDENT';
+var currentCourseId = null;
+var currentGrades = [];
+
+function authHeader() {
+    var token = localStorage.getItem('jwxt_token');
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
+function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function statusBadge(s) {
+    var cls = s === 'PUBLISHED' ? 'badge-published' : (s === 'SUBMITTED' ? 'badge-submitted' : 'badge-draft');
+    var label = s === 'PUBLISHED' ? '已发布' : (s === 'SUBMITTED' ? '已提交' : '草稿');
+    return '<span class="badge ' + cls + '">' + label + '</span>';
+}
+
+// ===== STUDENT =====
+async function loadStudentGrades() {
+    var container = document.getElementById('grades-table');
+    try {
+        var resp = await fetch('/api/grades/my', { headers: authHeader() });
+        var data = await resp.json();
+        if (data.code !== 200 || !data.data || data.data.length === 0) {
+            container.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>暂无成绩记录</p></div>';
+            return;
+        }
+        var grades = data.data;
+        var semesters = {};
+        for (var i = 0; i < grades.length; i++) {
+            // We don't have semester directly in GradeVO, collect unique semesters from...
+            // Actually GradeVO doesn't have semester. GPA endpoint takes semester param.
+            // We'll just populate semester dropdown from a known list
+        }
+
+        var html = '<table><thead><tr><th>课程</th><th>学分</th><th>分数</th><th>GPA绩点</th><th>状态</th></tr></thead><tbody>';
+        var semSet = {};
+        for (var j = 0; j < grades.length; j++) {
+            var g = grades[j];
+            html += '<tr>';
+            html += '<td>' + esc(g.courseName) + '</td>';
+            html += '<td>' + (g.credit || '-') + '</td>';
+            html += '<td>' + (g.score != null ? g.score : '-') + '</td>';
+            html += '<td>' + (g.gpaPoint != null ? g.gpaPoint.toFixed(1) : '-') + '</td>';
+            html += '<td>' + statusBadge(g.status) + '</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+
+        // Populate semester dropdown from unique semesters mentioned in grades
+        // The GPA endpoint needs semester, but GradeVO doesn't expose it.
+        // Use a static set of common semesters for now
+        document.getElementById('gpa-semester').innerHTML = '<option value="">选择学期</option>' +
+            '<option value="2025-2026-1">2025-2026-1</option>' +
+            '<option value="2025-2026-2">2025-2026-2</option>';
+    } catch (e) {
+        container.innerHTML = '<div class="empty-state"><span class="empty-icon">❌</span><p>加载失败</p></div>';
+    }
+}
+
+async function loadGPA() {
+    var semester = document.getElementById('gpa-semester').value;
+    var el = document.getElementById('gpa-value');
+    if (!semester) { el.textContent = '--'; return; }
+    try {
+        var resp = await fetch('/api/grades/gpa?semester=' + encodeURIComponent(semester), { headers: authHeader() });
+        var data = await resp.json();
+        if (data.code === 200 && data.data != null) {
+            el.textContent = data.data.toFixed(2);
+        } else {
+            el.textContent = 'N/A';
+        }
+    } catch (e) {
+        el.textContent = '--';
+    }
+}
+
+// ===== TEACHER =====
+async function loadTeacherCourses() {
+    var select = document.getElementById('teacher-course-select');
+    try {
+        var resp = await fetch('/api/courses/my', { headers: authHeader() });
+        var data = await resp.json();
+        if (data.code === 200 && data.data) {
+            for (var i = 0; i < data.data.length; i++) {
+                var c = data.data[i];
+                var opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name + ' (' + c.semester + ')';
+                select.appendChild(opt);
+            }
+        }
+    } catch (e) {}
+}
+
+async function loadTeacherGrades() {
+    var courseId = document.getElementById('teacher-course-select').value;
+    var container = document.getElementById('teacher-grades-table');
+    if (!courseId) {
+        container.innerHTML = '<div class="empty-state"><span class="empty-icon">👆</span><p>请先选择一门课程</p></div>';
+        updateTeacherButtons(null);
+        return;
+    }
+    currentCourseId = parseInt(courseId);
+
+    try {
+        var resp = await fetch('/api/grades/course/' + courseId, { headers: authHeader() });
+        var data = await resp.json();
+        if (data.code !== 200 || !data.data || data.data.length === 0) {
+            container.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>该课程暂无学生选课</p></div>';
+            updateTeacherButtons(null);
+            return;
+        }
+        currentGrades = data.data;
+        updateTeacherButtons(currentGrades[0]);
+
+        var html = '<table><thead><tr><th>学号</th><th>姓名</th><th>分数</th><th>GPA绩点</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+        for (var i = 0; i < currentGrades.length; i++) {
+            var g = currentGrades[i];
+            var locked = g.status === 'PUBLISHED';
+            html += '<tr>';
+            html += '<td>' + g.studentId + '</td>';
+            html += '<td>' + esc(g.studentName) + '</td>';
+            html += '<td>';
+            if (locked) {
+                html += (g.score != null ? g.score : '-');
+            } else {
+                html += '<input type="number" id="score-' + i + '" value="' + (g.score != null ? g.score : '') + '" step="0.1" min="0" max="100" style="width:80px; padding:6px 8px; border:2px solid var(--pink-light); border-radius:8px; font-size:14px; outline:none;">';
+            }
+            html += '</td>';
+            html += '<td>' + (g.gpaPoint != null ? g.gpaPoint.toFixed(1) : '-') + '</td>';
+            html += '<td>' + statusBadge(g.status) + '</td>';
+            html += '<td>';
+            if (!locked) {
+                html += '<button class="btn btn-sm btn-primary" onclick="saveOneGrade(' + i + ')">保存</button>';
+            }
+            html += '</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<div class="empty-state"><span class="empty-icon">❌</span><p>加载失败</p></div>';
+    }
+}
+
+function updateTeacherButtons(g) {
+    var btnSubmit = document.getElementById('btn-submit');
+    var btnPublish = document.getElementById('btn-publish');
+    if (!g) {
+        btnSubmit.disabled = true;
+        btnPublish.disabled = true;
+        return;
+    }
+    btnSubmit.disabled = g.status !== 'DRAFT';
+    btnPublish.disabled = g.status !== 'SUBMITTED';
+}
+
+async function saveOneGrade(idx) {
+    var g = currentGrades[idx];
+    var scoreInput = document.getElementById('score-' + idx);
+    var score = parseFloat(scoreInput.value);
+    if (isNaN(score) || score < 0 || score > 100) {
+        showAlert('请输入0-100之间的分数', 'error');
+        return;
+    }
+    try {
+        var resp = await fetch('/api/grades/teacher/save', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+            body: JSON.stringify({ studentId: g.studentId, courseId: g.courseId, score: score })
+        });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert('成绩已保存', 'success');
+            loadTeacherGrades();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+async function submitGrades() {
+    if (!currentCourseId) return;
+    if (!confirm('提交后成绩将不可修改（仅可发布），确认提交？')) return;
+    try {
+        var resp = await fetch('/api/grades/submit/' + currentCourseId, {
+            method: 'POST',
+            headers: authHeader()
+        });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert('成绩已提交', 'success');
+            loadTeacherGrades();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+async function publishGrades() {
+    if (!currentCourseId) return;
+    if (!confirm('发布后成绩将不可再修改，确认发布？')) return;
+    try {
+        var resp = await fetch('/api/grades/publish/' + currentCourseId, {
+            method: 'POST',
+            headers: authHeader()
+        });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert('成绩已发布', 'success');
+            loadTeacherGrades();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+// Init
+if (ROLE === 'STUDENT') {
+    loadStudentGrades();
+} else if (ROLE === 'TEACHER') {
+    loadTeacherCourses();
+}
+</script>
+
+</body>
+</html>

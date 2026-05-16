@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${role == 'STUDENT'} ? '课程浏览' : '课程管理'">课程 - 教务管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/htmx.min.js"></script>
+</head>
+<body>
+
+<div class="sakura-container">
+    <div class="sakura" style="left: 5%; animation-duration: 12s; animation-delay: 0s; --size: 20px;"></div>
+    <div class="sakura" style="left: 18%; animation-duration: 14s; animation-delay: 2s; --size: 16px;"></div>
+    <div class="sakura" style="left: 30%; animation-duration: 11s; animation-delay: 4s; --size: 22px;"></div>
+    <div class="sakura" style="left: 48%; animation-duration: 15s; animation-delay: 1s; --size: 18px;"></div>
+    <div class="sakura" style="left: 62%; animation-duration: 13s; animation-delay: 3s; --size: 24px;"></div>
+    <div class="sakura" style="left: 78%; animation-duration: 16s; animation-delay: 5s; --size: 20px;"></div>
+    <div class="sakura" style="left: 90%; animation-duration: 14s; animation-delay: 0s; --size: 21px;"></div>
+</div>
+
+<div class="page-wrapper">
+    <div th:replace="fragments :: navbar"></div>
+
+    <div class="container">
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h2 th:text="${role == 'STUDENT'} ? '📚 课程浏览' : '📚 课程管理'">课程</h2>
+                <p th:text="${role == 'STUDENT'} ? '浏览并选择你感兴趣的课程' : '管理你的课程信息'"></p>
+            </div>
+            <button th:if="${role == 'TEACHER' or role == 'ADMIN'}" class="btn btn-primary" onclick="openCourseModal()">
+                ＋ 新增课程
+            </button>
+        </div>
+
+        <div id="course-grid" class="card-grid">
+            <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-lighter);">
+                ⏳ 加载中...
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block th:if="${role == 'TEACHER' or role == 'ADMIN'}">
+<div id="course-modal" class="modal-overlay">
+    <div class="modal">
+        <h3 id="modal-title">新增课程</h3>
+        <form id="course-form" onsubmit="saveCourse(event)">
+            <input type="hidden" id="course-id">
+            <div class="form-group">
+                <label>课程名称 *</label>
+                <input type="text" id="course-name" placeholder="请输入课程名称" required>
+            </div>
+            <div class="form-group">
+                <label>课程描述</label>
+                <input type="text" id="course-desc" placeholder="简要描述课程内容">
+            </div>
+            <div class="form-group">
+                <label>学分 *</label>
+                <input type="number" id="course-credit" placeholder="例如 3.0" step="0.5" min="0.5" required>
+            </div>
+            <div class="form-group">
+                <label>最大人数 *</label>
+                <input type="number" id="course-max" placeholder="例如 30" min="1" required>
+            </div>
+            <div class="form-group">
+                <label>学期 *</label>
+                <input type="text" id="course-semester" placeholder="例如 2025-2026-2" required>
+            </div>
+            <div class="form-group">
+                <label>上课时间</label>
+                <input type="text" id="course-schedule" placeholder="例如 周一 8:00-9:40">
+            </div>
+            <div class="form-group">
+                <label>上课地点</label>
+                <input type="text" id="course-location" placeholder="例如 致远-107">
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="closeCourseModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+</th:block>
+
+<div th:replace="fragments :: scripts"></div>
+
+<script>
+const ROLE = /*[[${role}]]*/ 'STUDENT';
+
+async function loadCourses() {
+    var grid = document.getElementById('course-grid');
+    try {
+        var url = ROLE === 'STUDENT' ? '/api/courses/with-enrollment' : (ROLE === 'TEACHER' ? '/api/courses/my' : '/api/courses');
+        var resp = await fetch(url, { headers: authHeader() });
+        var data = await resp.json();
+        if (data.code !== 200 || !data.data || data.data.length === 0) {
+            grid.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>暂无课程</p></div>';
+            return;
+        }
+        var courses = data.data;
+        var html = '';
+        for (var i = 0; i < courses.length; i++) {
+            var c = courses[i];
+            var enrolled = c.enrolled !== undefined ? c.enrolled : false;
+            var enrolledCount = c.enrolledCount || 0;
+            var full = enrolledCount >= c.maxStudents;
+
+            html += '<div class="card course-card">';
+            html += '<div class="course-header">';
+            html += '<span class="course-name">' + esc(c.name) + '</span>';
+            html += '<span class="course-credit">' + c.credit + ' 学分</span>';
+            html += '</div>';
+            html += '<div class="course-meta">';
+            html += '<span>👩‍🏫 ' + esc(c.teacherName || '') + '</span>';
+            html += '<span>📅 ' + esc(c.semester || '') + '</span>';
+            if (c.schedule) html += '<span>🕐 ' + esc(c.schedule).replace(/；/g, '<br>🕐 ') + '</span>';
+            if (c.location) html += '<span>📍 ' + esc(c.location).replace(/；/g, '<br>📍 ') + '</span>';
+            html += '</div>';
+            if (c.description) html += '<div class="course-desc">' + esc(c.description) + '</div>';
+            html += '<div class="course-footer">';
+            html += '<span class="enrollment-count">已选 <span class="count">' + enrolledCount + '</span>/' + c.maxStudents + '</span>';
+
+            if (ROLE === 'STUDENT') {
+                if (enrolled) {
+                    html += '<button class="btn btn-sm btn-outline" onclick="unenroll(' + c.id + ')">退课</button>';
+                } else {
+                    html += '<button class="btn btn-sm btn-primary" onclick="enroll(' + c.id + ')"' + (full ? ' disabled' : '') + '>';
+                    html += full ? '已满' : '选课';
+                    html += '</button>';
+                }
+            } else {
+                html += '<div class="teacher-actions">';
+                html += '<button class="btn btn-sm btn-outline" data-course=\'' + JSON.stringify(c).replace(/'/g, '&#39;') + '\' onclick="editCourseFromButton(this)">编辑</button>';
+                html += '<button class="btn btn-sm btn-danger" onclick="deleteCourse(' + c.id + ')">删除</button>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+        grid.innerHTML = html;
+    } catch (e) {
+        grid.innerHTML = '<div class="empty-state"><span class="empty-icon">❌</span><p>加载失败，请刷新重试</p></div>';
+    }
+}
+
+
+async function enroll(courseId) {
+    try {
+        var resp = await fetch('/api/enrollments', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+            body: JSON.stringify({ courseId: courseId })
+        });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert('选课成功！', 'success');
+            loadCourses();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+async function unenroll(courseId) {
+    if (!confirm('确定要退选这门课程吗？')) return;
+    try {
+        var resp = await fetch('/api/enrollments/' + courseId, {
+            method: 'DELETE',
+            headers: authHeader()
+        });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert('退课成功', 'success');
+            loadCourses();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+function openCourseModal() {
+    document.getElementById('modal-title').textContent = '新增课程';
+    document.getElementById('course-id').value = '';
+    document.getElementById('course-name').value = '';
+    document.getElementById('course-desc').value = '';
+    document.getElementById('course-credit').value = '';
+    document.getElementById('course-max').value = '';
+    document.getElementById('course-semester').value = '';
+    document.getElementById('course-schedule').value = '';
+    document.getElementById('course-location').value = '';
+    document.getElementById('course-modal').classList.add('active');
+}
+
+function editCourseFromButton(btn) {
+    var c = JSON.parse(btn.getAttribute('data-course'));
+    document.getElementById('modal-title').textContent = '编辑课程';
+    document.getElementById('course-id').value = c.id;
+    document.getElementById('course-name').value = c.name;
+    document.getElementById('course-desc').value = c.description || '';
+    document.getElementById('course-credit').value = c.credit;
+    document.getElementById('course-max').value = c.maxStudents;
+    document.getElementById('course-semester').value = c.semester;
+    document.getElementById('course-schedule').value = c.schedule || '';
+    document.getElementById('course-location').value = c.location || '';
+    document.getElementById('course-modal').classList.add('active');
+}
+
+function closeCourseModal() {
+    document.getElementById('course-modal').classList.remove('active');
+}
+
+async function saveCourse(e) {
+    e.preventDefault();
+    var id = document.getElementById('course-id').value;
+    var body = {
+        name: document.getElementById('course-name').value,
+        description: document.getElementById('course-desc').value,
+        credit: parseFloat(document.getElementById('course-credit').value),
+        maxStudents: parseInt(document.getElementById('course-max').value),
+        semester: document.getElementById('course-semester').value,
+        schedule: document.getElementById('course-schedule').value,
+        location: document.getElementById('course-location').value
+    };
+    var method = id ? 'PUT' : 'POST';
+    var url = id ? '/api/courses/' + id : '/api/courses';
+
+    try {
+        var resp = await fetch(url, {
+            method: method,
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+            body: JSON.stringify(body)
+        });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert(id ? '课程已更新' : '课程已创建', 'success');
+            closeCourseModal();
+            loadCourses();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (err) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+async function deleteCourse(id) {
+    if (!confirm('确定要删除这门课程吗？此操作不可撤销。')) return;
+    try {
+        var resp = await fetch('/api/courses/' + id, { method: 'DELETE', headers: authHeader() });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert('课程已删除', 'success');
+            loadCourses();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+document.getElementById('course-modal') && document.getElementById('course-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeCourseModal();
+});
+
+loadCourses();
+</script>
+
+</body>
+</html>

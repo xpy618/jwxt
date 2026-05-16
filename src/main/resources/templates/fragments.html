@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+
+<nav th:fragment="navbar" class="navbar">
+    <a href="/index" class="navbar-brand">
+        <span class="brand-icon">🌸</span>
+        教务管理系统
+    </a>
+    <ul class="navbar-nav">
+        <li th:if="${role == 'STUDENT'}">
+            <a href="/courses">
+                📚 <span>课程浏览</span>
+            </a>
+        </li>
+        <li th:if="${role == 'STUDENT'}">
+            <a href="/schedule">
+                📅 <span>我的课表</span>
+            </a>
+        </li>
+        <li th:if="${role == 'STUDENT'}">
+            <a href="/grades">
+                📊 <span>成绩查询</span>
+            </a>
+        </li>
+        <li th:if="${role == 'TEACHER'}">
+            <a href="/courses">
+                📚 <span>课程管理</span>
+            </a>
+        </li>
+        <li th:if="${role == 'TEACHER'}">
+            <a href="/grades">
+                📊 <span>成绩管理</span>
+            </a>
+        </li>
+        <li th:if="${role == 'ADMIN'}">
+            <a href="/courses">
+                📚 <span>课程管理</span>
+            </a>
+        </li>
+        <li th:if="${role == 'ADMIN'}">
+            <a href="/admin/users">
+                👥 <span>用户管理</span>
+            </a>
+        </li>
+    </ul>
+    <div class="navbar-user">
+        <span class="role-badge" th:text="${role}">STUDENT</span>
+        <span class="user-name" th:text="${username}">用户</span>
+        <a href="#" onclick="logout()" class="btn btn-sm btn-outline">退出</a>
+    </div>
+</nav>
+
+<script th:fragment="scripts">
+    function logout() {
+        document.cookie = 'jwxt_token=; Max-Age=0; path=/';
+        localStorage.clear();
+        window.location.href = '/login';
+    }
+
+    // Set active nav link based on current URL
+    (function() {
+        var path = window.location.pathname;
+        var links = document.querySelectorAll('.navbar-nav a');
+        for (var i = 0; i < links.length; i++) {
+            if (links[i].getAttribute('href') === path) {
+                links[i].classList.add('active');
+            }
+        }
+    })();
+
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function authHeader() {
+        var token = localStorage.getItem('jwxt_token');
+        return token ? { 'Authorization': 'Bearer ' + token } : {};
+    }
+
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+        var token = localStorage.getItem('jwxt_token');
+        if (token) {
+            evt.detail.headers['Authorization'] = 'Bearer ' + token;
+        }
+    });
+
+    function showAlert(message, type) {
+        var area = document.getElementById('alert-area');
+        if (!area) {
+            area = document.createElement('div');
+            area.id = 'alert-area';
+            document.body.appendChild(area);
+        }
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + type;
+        toast.textContent = message;
+        area.appendChild(toast);
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 3000);
+    }
+</script>
+
+</body>
+</html>

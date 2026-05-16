@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首页 - 教务管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/htmx.min.js"></script>
+</head>
+<body>
+
+<div class="sakura-container">
+    <div class="sakura" style="left: 5%; animation-duration: 12s; animation-delay: 0s; --size: 20px;"></div>
+    <div class="sakura" style="left: 15%; animation-duration: 14s; animation-delay: 2s; --size: 16px;"></div>
+    <div class="sakura" style="left: 25%; animation-duration: 11s; animation-delay: 4s; --size: 22px;"></div>
+    <div class="sakura" style="left: 35%; animation-duration: 15s; animation-delay: 1s; --size: 18px;"></div>
+    <div class="sakura" style="left: 45%; animation-duration: 13s; animation-delay: 3s; --size: 24px;"></div>
+    <div class="sakura" style="left: 55%; animation-duration: 16s; animation-delay: 5s; --size: 20px;"></div>
+    <div class="sakura" style="left: 65%; animation-duration: 12s; animation-delay: 0s; --size: 17px;"></div>
+    <div class="sakura" style="left: 75%; animation-duration: 14s; animation-delay: 2s; --size: 21px;"></div>
+    <div class="sakura" style="left: 85%; animation-duration: 11s; animation-delay: 4s; --size: 19px;"></div>
+    <div class="sakura" style="left: 92%; animation-duration: 15s; animation-delay: 6s; --size: 23px;"></div>
+</div>
+
+<div class="page-wrapper">
+    <div th:replace="fragments :: navbar"></div>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>🌸 欢迎回来，<span th:text="${username}">用户</span></h2>
+            <p>Cherry Blossom Teaching Affairs System</p>
+        </div>
+
+        <div class="dashboard-cards">
+            <a th:if="${role == 'STUDENT'}" href="/courses" class="dashboard-card">
+                <span class="card-icon">📚</span>
+                <h3>课程浏览</h3>
+                <p>浏览并选择课程</p>
+            </a>
+            <a th:if="${role == 'STUDENT'}" href="/schedule" class="dashboard-card">
+                <span class="card-icon">📅</span>
+                <h3>我的课表</h3>
+                <p>查看本学期课程安排</p>
+            </a>
+            <a th:if="${role == 'STUDENT'}" href="/grades" class="dashboard-card">
+                <span class="card-icon">📊</span>
+                <h3>成绩查询</h3>
+                <p>查看成绩与 GPA</p>
+            </a>
+            <a th:if="${role == 'TEACHER'}" href="/courses" class="dashboard-card">
+                <span class="card-icon">📚</span>
+                <h3>课程管理</h3>
+                <p>管理我的课程</p>
+            </a>
+            <a th:if="${role == 'TEACHER'}" href="/grades" class="dashboard-card">
+                <span class="card-icon">📊</span>
+                <h3>成绩管理</h3>
+                <p>录入与发布成绩</p>
+            </a>
+            <a th:if="${role == 'ADMIN'}" href="/courses" class="dashboard-card">
+                <span class="card-icon">📚</span>
+                <h3>课程管理</h3>
+                <p>管理系统课程</p>
+            </a>
+            <a th:if="${role == 'ADMIN'}" href="/admin/users" class="dashboard-card">
+                <span class="card-icon">👥</span>
+                <h3>用户管理</h3>
+                <p>管理用户账号</p>
+            </a>
+        </div>
+
+        <div class="card" style="text-align:center; padding: 48px;">
+            <span style="font-size:64px; display:block; margin-bottom:16px;">🌸</span>
+            <p style="font-size:15px; color: var(--text-lighter);">
+                当前角色：<strong th:text="${role}" style="color: var(--pink-deep);">STUDENT</strong>
+            </p>
+        </div>
+    </div>
+</div>
+
+<div th:replace="fragments :: scripts"></div>
+
+</body>
+</html>
