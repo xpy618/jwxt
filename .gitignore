@@ -21,3 +21,9 @@ Thumbs.db
 # Env
 .env
 .env.local
+
+# Data files
+选课系统.txt
+
+# Claude Code local settings
+.claude/
