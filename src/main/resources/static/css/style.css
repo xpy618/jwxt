@@ -743,6 +743,182 @@ table tr:hover td {
     font-size: 15px;
 }
 
+/* ===== Users Management ===== */
+.users-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: var(--pink-lighter);
+    border-radius: var(--radius);
+    padding: 20px 16px;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.stat-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--pink-deep);
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--text-lighter);
+    margin-top: 4px;
+}
+
+.users-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.users-toolbar .toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.search-box {
+    position: relative;
+}
+
+.search-box .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.search-input {
+    width: 280px;
+    padding: 10px 16px 10px 38px;
+    border: 2px solid var(--pink-light);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+    outline: none;
+    transition: var(--transition);
+    font-family: inherit;
+}
+
+.search-input:focus {
+    border-color: var(--pink);
+    box-shadow: 0 0 0 4px rgba(255, 183, 197, 0.2);
+}
+
+.filter-select {
+    padding: 10px 14px;
+    border: 2px solid var(--pink-light);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+    outline: none;
+    transition: var(--transition);
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.filter-select:focus {
+    border-color: var(--pink);
+}
+
+/* Role badges */
+.badge-role-admin,
+.badge-role-teacher,
+.badge-role-student {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-role-admin {
+    background: var(--pink-lighter);
+    color: var(--pink-deep);
+}
+
+.badge-role-teacher {
+    background: #E8F0FE;
+    color: #4A7FB5;
+}
+
+.badge-role-student {
+    background: #E8F5E9;
+    color: #4CAF50;
+}
+
+/* Status badges */
+.badge-active,
+.badge-disabled {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-active {
+    background: #E8F5E9;
+    color: #4CAF50;
+}
+
+.badge-disabled {
+    background: #FFEBEE;
+    color: #D44;
+}
+
+.user-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--pink-lighter);
+    color: var(--pink-deep);
+    font-weight: 600;
+    font-size: 14px;
+    margin-right: 8px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.user-info-cell {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.cell-muted {
+    font-size: 13px;
+    color: var(--text-lighter);
+}
+
+.actions-cell {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
     .container {
@@ -751,8 +927,16 @@ table tr:hover td {
     .card-grid {
         grid-template-columns: 1fr;
     }
-    .dashboard-cards {
+    .dashboard-cards,
+    .users-stats {
         grid-template-columns: repeat(2, 1fr);
+    }
+    .search-input {
+        width: 100%;
+    }
+    .users-toolbar {
+        flex-direction: column;
+        align-items: stretch;
     }
     .navbar {
         padding: 0 16px;

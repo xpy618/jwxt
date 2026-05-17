@@ -5,6 +5,7 @@ import com.jwxt.dto.GradeRequest;
 import com.jwxt.dto.GradeVO;
 import com.jwxt.entity.*;
 import com.jwxt.repository.CourseRepository;
+import com.jwxt.repository.EnrollmentRepository;
 import com.jwxt.repository.GradeRepository;
 import com.jwxt.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class GradeService {
@@ -19,13 +22,16 @@ public class GradeService {
     private final GradeRepository gradeRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
+    private final EnrollmentRepository enrollmentRepository;
 
     public GradeService(GradeRepository gradeRepository,
                         CourseRepository courseRepository,
-                        UserRepository userRepository) {
+                        UserRepository userRepository,
+                        EnrollmentRepository enrollmentRepository) {
         this.gradeRepository = gradeRepository;
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
+        this.enrollmentRepository = enrollmentRepository;
     }
 
     @Transactional
@@ -78,8 +84,38 @@ public class GradeService {
     }
 
     public List<GradeVO> getCourseGrades(Long courseId) {
-        List<Grade> grades = gradeRepository.findByCourseId(courseId);
-        return grades.stream().map(this::toVO).toList();
+        List<Enrollment> enrollments = enrollmentRepository.findByCourseId(courseId);
+        if (enrollments.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Grade> gradeMap = gradeRepository.findByCourseId(courseId)
+                .stream()
+                .collect(Collectors.toMap(Grade::getStudentId, g -> g, (a, b) -> a));
+
+        Course course = courseRepository.findById(courseId).orElse(null);
+
+        return enrollments.stream()
+                .map(enrollment -> {
+                    Grade grade = gradeMap.get(enrollment.getStudentId());
+                    return grade != null ? toVO(grade) : toEmptyVO(enrollment, course);
+                })
+                .toList();
+    }
+
+    private GradeVO toEmptyVO(Enrollment enrollment, Course course) {
+        GradeVO vo = new GradeVO();
+        vo.setStudentId(enrollment.getStudentId());
+        vo.setCourseId(enrollment.getCourseId());
+        User student = userRepository.findById(enrollment.getStudentId()).orElse(null);
+        if (student != null) {
+            vo.setStudentName(student.getName());
+        }
+        if (course != null) {
+            vo.setCourseName(course.getName());
+            vo.setCredit(course.getCredit());
+        }
+        return vo;
     }
 
     public float calculateGPA(Long studentId, String semester) {

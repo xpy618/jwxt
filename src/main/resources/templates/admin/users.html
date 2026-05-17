@@ -23,12 +23,51 @@
 
     <div class="container">
         <div class="page-header">
-            <h2>👥 用户管理</h2>
+            <h2>用户管理</h2>
             <p>管理系统中的所有用户账号</p>
         </div>
 
+        <div id="users-stats" class="users-stats" style="display:none;">
+            <div class="stat-card">
+                <div class="stat-number" id="stat-total">0</div>
+                <div class="stat-label">总用户</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-admin">0</div>
+                <div class="stat-label">管理员</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-teacher">0</div>
+                <div class="stat-label">教师</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-student">0</div>
+                <div class="stat-label">学生</div>
+            </div>
+        </div>
+
+        <div id="users-toolbar" class="users-toolbar" style="display:none;">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" id="search-input" placeholder="搜索用户名、姓名、邮箱...">
+            </div>
+            <div class="toolbar-row">
+                <select class="filter-select" id="filter-role">
+                    <option value="">全部角色</option>
+                    <option value="ADMIN">管理员</option>
+                    <option value="TEACHER">教师</option>
+                    <option value="STUDENT">学生</option>
+                </select>
+                <select class="filter-select" id="filter-status">
+                    <option value="">全部状态</option>
+                    <option value="active">正常</option>
+                    <option value="disabled">已禁用</option>
+                </select>
+            </div>
+        </div>
+
         <div id="users-table" class="table-wrapper">
-            <div style="text-align:center; padding:40px; color:var(--text-lighter);">⏳ 加载中...</div>
+            <div style="text-align:center; padding:40px; color:var(--text-lighter);">加载中...</div>
         </div>
     </div>
 </div>
@@ -37,6 +76,7 @@
 
 <script th:inline="javascript">
 var CURRENT_USER_ID = /*[[${userId}]]*/ 0;
+var allUsers = [];
 
 function authHeader() {
     var token = localStorage.getItem('jwxt_token');
@@ -49,9 +89,85 @@ function esc(s) {
     return d.innerHTML;
 }
 
-function roleBadge(role) {
-    var label = role === 'ADMIN' ? '管理员' : (role === 'TEACHER' ? '教师' : '学生');
-    return '<span class="badge" style="background:var(--pink-lighter); color:var(--pink-deep);">' + label + '</span>';
+function roleBadgeClass(role) {
+    if (role === 'ADMIN') return 'badge-role-admin';
+    if (role === 'TEACHER') return 'badge-role-teacher';
+    return 'badge-role-student';
+}
+
+function roleBadgeLabel(role) {
+    if (role === 'ADMIN') return '管理员';
+    if (role === 'TEACHER') return '教师';
+    return '学生';
+}
+
+function updateStats(users) {
+    var total = users.length;
+    var admin = 0, teacher = 0, student = 0;
+    for (var i = 0; i < users.length; i++) {
+        if (users[i].role === 'ADMIN') admin++;
+        else if (users[i].role === 'TEACHER') teacher++;
+        else student++;
+    }
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-admin').textContent = admin;
+    document.getElementById('stat-teacher').textContent = teacher;
+    document.getElementById('stat-student').textContent = student;
+}
+
+function renderUsers(users) {
+    var container = document.getElementById('users-table');
+    if (users.length === 0) {
+        container.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>没有匹配的用户</p></div>';
+        return;
+    }
+    var html = '<table><thead><tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>邮箱</th><th>手机</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
+    for (var i = 0; i < users.length; i++) {
+        var u = users[i];
+        var isSelf = u.id === CURRENT_USER_ID;
+        html += '<tr>';
+        html += '<td>' + u.id + '</td>';
+        html += '<td><div class="user-info-cell"><span class="user-avatar">' + esc(u.name.charAt(0)) + '</span><strong>' + esc(u.username) + '</strong></div></td>';
+        html += '<td>' + esc(u.name) + '</td>';
+        html += '<td><span class="' + roleBadgeClass(u.role) + '">' + roleBadgeLabel(u.role) + '</span></td>';
+        html += '<td class="cell-muted">' + (u.email ? esc(u.email) : '-') + '</td>';
+        html += '<td class="cell-muted">' + (u.phone ? esc(u.phone) : '-') + '</td>';
+        html += '<td>' + (u.enabled ? '<span class="badge-active">正常</span>' : '<span class="badge-disabled">已禁用</span>') + '</td>';
+        html += '<td class="cell-muted">' + (u.createdAt ? new Date(u.createdAt).toLocaleDateString('zh-CN') : '-') + '</td>';
+        html += '<td class="actions-cell">';
+        if (u.enabled) {
+            html += '<button class="btn btn-sm btn-outline" onclick="toggleStatus(' + u.id + ', false)">禁用</button>';
+        } else {
+            html += '<button class="btn btn-sm btn-success" onclick="toggleStatus(' + u.id + ', true)">启用</button>';
+        }
+        html += '<button class="btn btn-sm btn-outline" onclick="resetPassword(' + u.id + ', \'' + esc(u.username) + '\')">重置密码</button>';
+        if (!isSelf && u.role !== 'ADMIN') {
+            html += '<button class="btn btn-sm btn-danger" onclick="deleteUser(' + u.id + ', \'' + esc(u.username) + '\')">删除</button>';
+        }
+        html += '</td>';
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function filterUsers() {
+    var keyword = document.getElementById('search-input').value.toLowerCase().trim();
+    var role = document.getElementById('filter-role').value;
+    var status = document.getElementById('filter-status').value;
+
+    var filtered = allUsers.filter(function(u) {
+        if (role && u.role !== role) return false;
+        if (status === 'active' && !u.enabled) return false;
+        if (status === 'disabled' && u.enabled) return false;
+        if (keyword) {
+            return (u.username && u.username.toLowerCase().indexOf(keyword) !== -1)
+                || (u.name && u.name.toLowerCase().indexOf(keyword) !== -1)
+                || (u.email && u.email.toLowerCase().indexOf(keyword) !== -1);
+        }
+        return true;
+    });
+    renderUsers(filtered);
 }
 
 async function loadUsers() {
@@ -63,39 +179,15 @@ async function loadUsers() {
             container.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>暂无用户</p></div>';
             return;
         }
-        var users = data.data;
-        var html = '<table><thead><tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>邮箱</th><th>手机</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
-        for (var i = 0; i < users.length; i++) {
-            var u = users[i];
-            var isSelf = u.id === CURRENT_USER_ID;
-            html += '<tr>';
-            html += '<td>' + u.id + '</td>';
-            html += '<td><strong>' + esc(u.username) + '</strong></td>';
-            html += '<td>' + esc(u.name) + '</td>';
-            html += '<td>' + roleBadge(u.role) + '</td>';
-            html += '<td>' + (u.email ? esc(u.email) : '-') + '</td>';
-            html += '<td>' + (u.phone ? esc(u.phone) : '-') + '</td>';
-            html += '<td>';
-            html += u.enabled
-                ? '<span style="color:#4CAF50; font-weight:600;">正常</span>'
-                : '<span style="color:#D44; font-weight:600;">已禁用</span>';
-            html += '</td>';
-            html += '<td style="font-size:13px; color:var(--text-lighter);">' + (u.createdAt ? new Date(u.createdAt).toLocaleDateString('zh-CN') : '-') + '</td>';
-            html += '<td style="display:flex; gap:6px; flex-wrap:wrap;">';
-            if (u.enabled) {
-                html += '<button class="btn btn-sm btn-outline" onclick="toggleStatus(' + u.id + ', false)">禁用</button>';
-            } else {
-                html += '<button class="btn btn-sm btn-success" onclick="toggleStatus(' + u.id + ', true)">启用</button>';
-            }
-            html += '<button class="btn btn-sm btn-outline" onclick="resetPassword(' + u.id + ', \'' + esc(u.username) + '\')">重置密码</button>';
-            if (!isSelf && u.role !== 'ADMIN') {
-                html += '<button class="btn btn-sm btn-danger" onclick="deleteUser(' + u.id + ', \'' + esc(u.username) + '\')">删除</button>';
-            }
-            html += '</td>';
-            html += '</tr>';
-        }
-        html += '</tbody></table>';
-        container.innerHTML = html;
+        allUsers = data.data;
+        updateStats(allUsers);
+        renderUsers(allUsers);
+        document.getElementById('users-stats').style.display = 'grid';
+        document.getElementById('users-toolbar').style.display = 'flex';
+
+        document.getElementById('search-input').addEventListener('input', filterUsers);
+        document.getElementById('filter-role').addEventListener('change', filterUsers);
+        document.getElementById('filter-status').addEventListener('change', filterUsers);
     } catch (e) {
         container.innerHTML = '<div class="empty-state"><span class="empty-icon">❌</span><p>加载失败</p></div>';
     }

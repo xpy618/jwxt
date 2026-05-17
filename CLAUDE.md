@@ -14,8 +14,8 @@ export PATH="$JAVA_HOME/bin:/d/Software/Maven/apache-maven-3.9.9/bin:$PATH"
 # 编译
 mvn clean compile
 
-# 启动 (端口 8080)
-mvn spring-boot:run
+# 启动 (端口 8080)，-o 跳过 Maven 更新检查，-Dmaven.test.skip=true 彻底跳过 test 阶段
+mvn spring-boot:run -o -Dmaven.test.skip=true
 
 # MySQL (无密码)
 /d/Software/MySQL/MySQL\ Server\ 8.0/bin/mysql -u root
@@ -65,7 +65,7 @@ netsh advfirewall firewall add rule name="JWXT 8080" dir=in action=allow protoco
 ```cmd
 set JAVA_HOME=D:\Software\JDK17\jdk-17.0.19+10
 set PATH=%JAVA_HOME%\bin;D:\Software\Maven\apache-maven-3.9.9\bin;%PATH%
-mvn spring-boot:run
+mvn spring-boot:run -o -Dmaven.test.skip=true
 ```
 
 ### 3. 手机热点共享
@@ -76,6 +76,8 @@ mvn spring-boot:run
 4. 手机（或连同一热点的设备）访问 `http://<新IP>:8080/login`
 
 此方案绕过了校园网 AP 隔离，同一热点下的设备均可访问。
+
+**已知热点 IP**: 192.168.80.108（此 IP 通常不变，防火墙规则已永久写入，无需每次检查）。
 
 ## 架构概览
 
@@ -110,11 +112,11 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 /api/enrollments/**       → STUDENT
 /api/grades/teacher/**    → TEACHER
 /api/grades/submit|publish → TEACHER
-/api/admin/**             → ADMIN
+/api/admin/**             → ADMIN（含重置密码、删除用户等）
 其他所有请求               → authenticated
 ```
 
-`SecurityConfig` 做了 URL 级拦截，部分 Controller 方法上还有 `@PreAuthorize` 注解。
+`SecurityConfig` 做 URL 级拦截，`UserController` 类级别 `@PreAuthorize("hasRole('ADMIN')")` 覆盖全部 `/api/admin/**`。部分 Controller 方法上还有额外的 `@PreAuthorize` 注解。
 
 ## DTO/VO 层
 
@@ -133,10 +135,19 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 
 ## 核心业务规则
 
+### 选课
 - **选课上限**: `enrollmentRepository.countByCourseId()` >= `course.maxStudents` 时拒绝
 - **时间冲突**: 同一学生选多门课时，遍历两门课的所有 CourseSlot，若任一 schedule 字符串相同则拒绝
-- **成绩流程**: DRAFT → SUBMITTED（教师提交）→ PUBLISHED（教师发布），发布后不可修改
+
+### 成绩
+- **流程**: DRAFT → SUBMITTED（教师提交）→ PUBLISHED（教师发布），发布后不可修改
 - **GPA**: 标准 4.0 算法，仅计算已发布成绩，`(∑ gpaPoint × credit) / ∑ credit`
+
+### 管理员特权
+- **强制删课**: 无视选课人数限制，同时清空关联的选课记录、成绩和时段（`CourseService.forceDelete()`）
+- **重置密码**: `PUT /api/admin/users/{id}/reset-password`，默认重置为 `123456`
+- **删除用户**: `DELETE /api/admin/users/{id}`，级联清理该用户的选课、成绩；若为教师则同时删除其所有课程及关联数据
+- **自我保护**: 不能删除自己，不能删除 ADMIN 角色用户
 
 ## 课程多时段模型
 
@@ -176,14 +187,17 @@ Course (1) ──── (N) CourseSlot
 
 ## 当前状态
 
+**v2.0** — 管理员特权版。管理员可重置密码、删除用户（级联）、强制删除课程（无视选课限制）。修复了 Thymeleaf `th:inline="javascript"` 缺失导致角色判断失效的 bug。
+
 **已完成**: 全部后端（实体/Repository/Service/Controller/安全配置/数据初始化），pom.xml，application.yml，通用组件（Result/异常处理）
 
-**前端已完成**: `style.css`（樱花主题）、`login.html`、`register.html`、`fragments.html`（导航栏 + 共享 JS）、`index.html`（首页仪表盘）、`courses.html`（课程浏览/管理）、`schedule.html`（学生课表）、`grades.html`（成绩查询/管理）、`admin/users.html`（用户管理）
+**前端已完成**: `style.css`（樱花主题）、`login.html`、`register.html`、`fragments.html`（导航栏 + 共享 JS）、`index.html`（首页仪表盘）、`courses.html`（课程浏览/管理）、`schedule.html`（学生课表）、`grades.html`（成绩查询/管理）、`admin/users.html`（用户管理，含重置密码/删除）
 
 **无测试**。API 文档可通过 `/swagger-ui.html` 查看（SpringDoc OpenAPI 3.0，无需认证）。
 
 ## 注意
 
+- **Thymeleaf JS 内联**: 任何 `<script>` 中使用 `/*[[${...}]]*/` 或 `[[${...}]]` 表达式时，**必须**加 `th:inline="javascript"`。否则 Thymeleaf 仅替换 `[[...]]` 内部值而不移除 `/* */` 注释包裹，导致 JS 引擎将其当作注释跳过，变量始终取默认值。
 - Thymeleaf 3.1+ 不再默认支持 `#request` 表达式对象，导航栏 active 状态通过 JS 根据 `window.location.pathname` 设置，不要使用 `th:classappend` 配合 `#request.requestURI`。
 - `Course` 实体已移除 `schedule` 和 `location` 字段，所有时段操作通过 `CourseSlotRepository` 进行。
 

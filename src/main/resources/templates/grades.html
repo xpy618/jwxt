@@ -194,12 +194,12 @@ async function loadTeacherGrades() {
         var resp = await fetch('/api/grades/course/' + courseId, { headers: authHeader() });
         var data = await resp.json();
         if (data.code !== 200 || !data.data || data.data.length === 0) {
-            container.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>该课程暂无学生选课</p></div>';
+            container.innerHTML = '<div class="empty-state"><span class="empty-icon">📭</span><p>该课程暂无学生</p></div>';
             updateTeacherButtons(null);
             return;
         }
         currentGrades = data.data;
-        updateTeacherButtons(currentGrades[0]);
+        updateTeacherButtons(currentGrades);
 
         var html = '<table><thead><tr><th>学号</th><th>姓名</th><th>分数</th><th>GPA绩点</th><th>状态</th><th>操作</th></tr></thead><tbody>';
         for (var i = 0; i < currentGrades.length; i++) {
@@ -216,7 +216,7 @@ async function loadTeacherGrades() {
             }
             html += '</td>';
             html += '<td>' + (g.gpaPoint != null ? g.gpaPoint.toFixed(1) : '-') + '</td>';
-            html += '<td>' + statusBadge(g.status) + '</td>';
+            html += '<td>' + (g.status ? statusBadge(g.status) : '<span class="badge" style="background:#FFF3E0; color:#E09630;">未录入</span>') + '</td>';
             html += '<td>';
             if (!locked) {
                 html += '<button class="btn btn-sm btn-primary" onclick="saveOneGrade(' + i + ')">保存</button>';
@@ -231,16 +231,27 @@ async function loadTeacherGrades() {
     }
 }
 
-function updateTeacherButtons(g) {
+function updateTeacherButtons(grades) {
     var btnSubmit = document.getElementById('btn-submit');
     var btnPublish = document.getElementById('btn-publish');
-    if (!g) {
+    if (!grades || grades.length === 0) {
         btnSubmit.disabled = true;
         btnPublish.disabled = true;
         return;
     }
-    btnSubmit.disabled = g.status !== 'DRAFT';
-    btnPublish.disabled = g.status !== 'SUBMITTED';
+    var statuses = [];
+    for (var i = 0; i < grades.length; i++) {
+        if (grades[i].status) statuses.push(grades[i].status);
+    }
+    if (statuses.length === 0) {
+        btnSubmit.disabled = true;
+        btnPublish.disabled = true;
+        return;
+    }
+    var allDraft = statuses.every(function(s) { return s === 'DRAFT'; });
+    var allSubmitted = statuses.every(function(s) { return s === 'SUBMITTED'; });
+    btnSubmit.disabled = !allDraft;
+    btnPublish.disabled = !allSubmitted;
 }
 
 async function saveOneGrade(idx) {
