@@ -7,7 +7,7 @@ import com.jwxt.dto.LoginResponse;
 import com.jwxt.dto.RegisterRequest;
 import com.jwxt.entity.Role;
 import com.jwxt.entity.User;
-import com.jwxt.repository.UserRepository;
+import com.jwxt.repository.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,11 +20,21 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final EnrollmentRepository enrollmentRepository;
+    private final GradeRepository gradeRepository;
+    private final CourseRepository courseRepository;
+    private final CourseSlotRepository courseSlotRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils,
+                       EnrollmentRepository enrollmentRepository, GradeRepository gradeRepository,
+                       CourseRepository courseRepository, CourseSlotRepository courseSlotRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
+        this.enrollmentRepository = enrollmentRepository;
+        this.gradeRepository = gradeRepository;
+        this.courseRepository = courseRepository;
+        this.courseSlotRepository = courseSlotRepository;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -66,6 +76,41 @@ public class UserService {
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         user.setEnabled(enabled);
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void resetPassword(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("用户不存在"));
+        user.setPassword(passwordEncoder.encode("123456"));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteUser(Long userId, Long currentUserId) {
+        if (userId.equals(currentUserId)) {
+            throw new BusinessException("不能删除自己的账号");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("用户不存在"));
+        if (user.getRole() == Role.ADMIN) {
+            throw new BusinessException("不能删除管理员账号");
+        }
+
+        if (user.getRole() == Role.TEACHER) {
+            List<Long> courseIds = courseRepository.findByTeacherId(userId).stream()
+                    .map(c -> c.getId()).toList();
+            for (Long courseId : courseIds) {
+                enrollmentRepository.findByCourseId(courseId).forEach(e -> enrollmentRepository.deleteById(e.getId()));
+                gradeRepository.deleteByCourseId(courseId);
+                courseSlotRepository.deleteByCourseId(courseId);
+            }
+            courseRepository.deleteAllById(courseIds);
+        }
+
+        enrollmentRepository.findByStudentId(userId).forEach(e -> enrollmentRepository.deleteById(e.getId()));
+        gradeRepository.deleteByStudentId(userId);
+        userRepository.deleteById(userId);
     }
 
     public User getById(Long id) {

@@ -4,6 +4,7 @@ import com.jwxt.common.Result;
 import com.jwxt.dto.CourseRequest;
 import com.jwxt.dto.CourseVO;
 import com.jwxt.entity.Course;
+import com.jwxt.entity.Role;
 import com.jwxt.service.CourseService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -40,6 +41,18 @@ public class CourseController {
         return Result.success(courseService.listByTeacher(userId));
     }
 
+    @GetMapping("/manage")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public Result<List<CourseVO>> listManage(Authentication auth) {
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + Role.ADMIN.name()));
+        Long userId = (Long) auth.getCredentials();
+        if (isAdmin) {
+            return Result.success(courseService.listManageVO());
+        }
+        return Result.success(courseService.listByTeacherVO(userId));
+    }
+
     @GetMapping("/{id}")
     public Result<Course> getById(@PathVariable Long id) {
         return Result.success(courseService.getById(id));
@@ -60,8 +73,14 @@ public class CourseController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    public Result<Void> delete(@PathVariable Long id) {
-        courseService.delete(id);
+    public Result<Void> delete(@PathVariable Long id, Authentication auth) {
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) {
+            courseService.forceDelete(id);
+        } else {
+            courseService.delete(id);
+        }
         return Result.success();
     }
 }

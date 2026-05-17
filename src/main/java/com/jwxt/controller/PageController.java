@@ -54,6 +54,7 @@ public class PageController {
     public String adminUsers(Authentication auth, Model model) {
         String role = auth.getAuthorities().iterator().next().getAuthority();
         model.addAttribute("username", auth.getName());
+        model.addAttribute("userId", auth.getCredentials());
         model.addAttribute("role", role.replace("ROLE_", ""));
         return "admin/users";
     }

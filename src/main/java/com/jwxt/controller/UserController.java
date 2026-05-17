@@ -4,6 +4,7 @@ import com.jwxt.common.Result;
 import com.jwxt.entity.User;
 import com.jwxt.service.UserService;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +29,19 @@ public class UserController {
     @PutMapping("/users/{userId}/status")
     public Result<Void> updateStatus(@PathVariable Long userId, @RequestBody Map<String, Boolean> body) {
         userService.updateUserStatus(userId, body.get("enabled"));
+        return Result.success();
+    }
+
+    @PutMapping("/users/{userId}/reset-password")
+    public Result<Void> resetPassword(@PathVariable Long userId) {
+        userService.resetPassword(userId);
+        return Result.success();
+    }
+
+    @DeleteMapping("/users/{userId}")
+    public Result<Void> deleteUser(@PathVariable Long userId, Authentication auth) {
+        Long currentUserId = (Long) auth.getCredentials();
+        userService.deleteUser(userId, currentUserId);
         return Result.success();
     }
 }

@@ -86,13 +86,13 @@
 
 <div th:replace="fragments :: scripts"></div>
 
-<script>
+<script th:inline="javascript">
 const ROLE = /*[[${role}]]*/ 'STUDENT';
 
 async function loadCourses() {
     var grid = document.getElementById('course-grid');
     try {
-        var url = ROLE === 'STUDENT' ? '/api/courses/with-enrollment' : (ROLE === 'TEACHER' ? '/api/courses/my' : '/api/courses');
+        var url = ROLE === 'STUDENT' ? '/api/courses/with-enrollment' : '/api/courses/manage';
         var resp = await fetch(url, { headers: authHeader() });
         var data = await resp.json();
         if (data.code !== 200 || !data.data || data.data.length === 0) {
@@ -120,9 +120,9 @@ async function loadCourses() {
             html += '</div>';
             if (c.description) html += '<div class="course-desc">' + esc(c.description) + '</div>';
             html += '<div class="course-footer">';
-            html += '<span class="enrollment-count">已选 <span class="count">' + enrolledCount + '</span>/' + c.maxStudents + '</span>';
 
             if (ROLE === 'STUDENT') {
+                html += '<span class="enrollment-count">已选 <span class="count">' + enrolledCount + '</span>/' + c.maxStudents + '</span>';
                 if (enrolled) {
                     html += '<button class="btn btn-sm btn-outline" onclick="unenroll(' + c.id + ')">退课</button>';
                 } else {
@@ -131,6 +131,7 @@ async function loadCourses() {
                     html += '</button>';
                 }
             } else {
+                html += '<span class="enrollment-count">已选 <span class="count">' + enrolledCount + '</span>/' + c.maxStudents + '</span>';
                 html += '<div class="teacher-actions">';
                 html += '<button class="btn btn-sm btn-outline" data-course=\'' + JSON.stringify(c).replace(/'/g, '&#39;') + '\' onclick="editCourseFromButton(this)">编辑</button>';
                 html += '<button class="btn btn-sm btn-danger" onclick="deleteCourse(' + c.id + ')">删除</button>';

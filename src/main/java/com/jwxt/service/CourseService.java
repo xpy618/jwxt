@@ -11,6 +11,7 @@ import com.jwxt.entity.User;
 import com.jwxt.repository.CourseRepository;
 import com.jwxt.repository.CourseSlotRepository;
 import com.jwxt.repository.EnrollmentRepository;
+import com.jwxt.repository.GradeRepository;
 import com.jwxt.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +25,18 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final CourseSlotRepository slotRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final GradeRepository gradeRepository;
     private final UserRepository userRepository;
 
     public CourseService(CourseRepository courseRepository,
                          CourseSlotRepository slotRepository,
                          EnrollmentRepository enrollmentRepository,
+                         GradeRepository gradeRepository,
                          UserRepository userRepository) {
         this.courseRepository = courseRepository;
         this.slotRepository = slotRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.gradeRepository = gradeRepository;
         this.userRepository = userRepository;
     }
 
@@ -80,6 +84,14 @@ public class CourseService {
         if (enrollmentRepository.existsByCourseId(courseId)) {
             throw new BusinessException("已有学生选课，无法删除");
         }
+        slotRepository.deleteByCourseId(courseId);
+        courseRepository.deleteById(courseId);
+    }
+
+    @Transactional
+    public void forceDelete(Long courseId) {
+        enrollmentRepository.findByCourseId(courseId).forEach(e -> enrollmentRepository.deleteById(e.getId()));
+        gradeRepository.deleteByCourseId(courseId);
         slotRepository.deleteByCourseId(courseId);
         courseRepository.deleteById(courseId);
     }
@@ -197,24 +209,39 @@ public class CourseService {
 
     public List<CourseVO> listWithEnrollmentStatus(Long studentId) {
         List<Course> courses = courseRepository.findAll();
+        List<Enrollment> myEnrollments = enrollmentRepository.findByStudentId(studentId);
+        Set<Long> myCourseIds = myEnrollments.stream().map(Enrollment::getCourseId).collect(Collectors.toSet());
+        return buildCourseVOs(courses, myCourseIds);
+    }
+
+    public List<CourseVO> listManageVO() {
+        return buildCourseVOs(courseRepository.findAll(), Set.of());
+    }
+
+    public List<CourseVO> listByTeacherVO(Long teacherId) {
+        return buildCourseVOs(courseRepository.findByTeacherId(teacherId), Set.of());
+    }
+
+    private List<CourseVO> buildCourseVOs(List<Course> courses, Set<Long> enrolledCourseIds) {
         if (courses.isEmpty()) return List.of();
 
-        List<Long> allCourseIds = courses.stream().map(Course::getId).toList();
-        Set<Long> teacherIds = courses.stream().map(Course::getTeacherId).collect(Collectors.toSet());
+        List<Long> courseIds = new ArrayList<>(courses.size());
+        Set<Long> teacherIds = new HashSet<>();
+        for (Course c : courses) {
+            courseIds.add(c.getId());
+            teacherIds.add(c.getTeacherId());
+        }
 
         Map<Long, String> teacherNameMap = userRepository.findAllById(teacherIds).stream()
                 .collect(Collectors.toMap(User::getId, User::getName));
         Map<Long, Long> countMap = new HashMap<>();
-        List<Object[]> counts = enrollmentRepository.countGroupByCourseId(allCourseIds);
+        List<Object[]> counts = enrollmentRepository.countGroupByCourseId(courseIds);
         for (Object[] row : counts) {
-            countMap.put((Long) row[0], (Long) row[1]);
+            countMap.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
         }
-        List<CourseSlot> allSlots = slotRepository.findByCourseIdIn(allCourseIds);
+        List<CourseSlot> allSlots = slotRepository.findByCourseIdIn(courseIds);
         Map<Long, List<CourseSlot>> slotsByCourse = allSlots.stream()
                 .collect(Collectors.groupingBy(CourseSlot::getCourseId));
-
-        List<Enrollment> myEnrollments = enrollmentRepository.findByStudentId(studentId);
-        Set<Long> myCourseIds = myEnrollments.stream().map(Enrollment::getCourseId).collect(Collectors.toSet());
 
         return courses.stream().map(course -> {
             List<CourseSlot> slots = slotsByCourse.getOrDefault(course.getId(), List.of());
@@ -228,9 +255,24 @@ public class CourseService {
             vo.setEnrolledCount(countMap.getOrDefault(course.getId(), 0L));
             vo.setSemester(course.getSemester());
             vo.setCredit(course.getCredit());
-            vo.setSchedule(slots.isEmpty() ? null : slots.stream().map(CourseSlot::getSchedule).collect(Collectors.joining("；")));
-            vo.setLocation(slots.isEmpty() ? null : slots.stream().map(s -> s.getLocation() != null ? s.getLocation() : "").collect(Collectors.joining("；")));
-            vo.setEnrolled(myCourseIds.contains(course.getId()));
+            if (slots.isEmpty()) {
+                vo.setSchedule(null);
+                vo.setLocation(null);
+            } else {
+                StringBuilder sbSchedule = new StringBuilder();
+                StringBuilder sbLocation = new StringBuilder();
+                for (int i = 0; i < slots.size(); i++) {
+                    if (i > 0) {
+                        sbSchedule.append("；");
+                        sbLocation.append("；");
+                    }
+                    sbSchedule.append(slots.get(i).getSchedule());
+                    sbLocation.append(slots.get(i).getLocation() != null ? slots.get(i).getLocation() : "");
+                }
+                vo.setSchedule(sbSchedule.toString());
+                vo.setLocation(sbLocation.toString());
+            }
+            vo.setEnrolled(enrolledCourseIds.contains(course.getId()));
             return vo;
         }).toList();
     }

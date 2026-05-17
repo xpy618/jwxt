@@ -35,7 +35,9 @@
 
 <div th:replace="fragments :: scripts"></div>
 
-<script>
+<script th:inline="javascript">
+var CURRENT_USER_ID = /*[[${userId}]]*/ 0;
+
 function authHeader() {
     var token = localStorage.getItem('jwxt_token');
     return token ? { 'Authorization': 'Bearer ' + token } : {};
@@ -65,6 +67,7 @@ async function loadUsers() {
         var html = '<table><thead><tr><th>ID</th><th>用户名</th><th>姓名</th><th>角色</th><th>邮箱</th><th>手机</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead><tbody>';
         for (var i = 0; i < users.length; i++) {
             var u = users[i];
+            var isSelf = u.id === CURRENT_USER_ID;
             html += '<tr>';
             html += '<td>' + u.id + '</td>';
             html += '<td><strong>' + esc(u.username) + '</strong></td>';
@@ -78,11 +81,15 @@ async function loadUsers() {
                 : '<span style="color:#D44; font-weight:600;">已禁用</span>';
             html += '</td>';
             html += '<td style="font-size:13px; color:var(--text-lighter);">' + (u.createdAt ? new Date(u.createdAt).toLocaleDateString('zh-CN') : '-') + '</td>';
-            html += '<td>';
+            html += '<td style="display:flex; gap:6px; flex-wrap:wrap;">';
             if (u.enabled) {
-                html += '<button class="btn btn-sm btn-danger" onclick="toggleStatus(' + u.id + ', false)">禁用</button>';
+                html += '<button class="btn btn-sm btn-outline" onclick="toggleStatus(' + u.id + ', false)">禁用</button>';
             } else {
                 html += '<button class="btn btn-sm btn-success" onclick="toggleStatus(' + u.id + ', true)">启用</button>';
+            }
+            html += '<button class="btn btn-sm btn-outline" onclick="resetPassword(' + u.id + ', \'' + esc(u.username) + '\')">重置密码</button>';
+            if (!isSelf && u.role !== 'ADMIN') {
+                html += '<button class="btn btn-sm btn-danger" onclick="deleteUser(' + u.id + ', \'' + esc(u.username) + '\')">删除</button>';
             }
             html += '</td>';
             html += '</tr>';
@@ -106,6 +113,43 @@ async function toggleStatus(userId, enabled) {
         var data = await resp.json();
         if (data.code === 200) {
             showAlert('用户已' + action, 'success');
+            loadUsers();
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+async function resetPassword(userId, username) {
+    if (!confirm('确定要重置用户「' + username + '」的密码为 123456 吗？')) return;
+    try {
+        var resp = await fetch('/api/admin/users/' + userId + '/reset-password', {
+            method: 'PUT',
+            headers: authHeader()
+        });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert('密码已重置为 123456', 'success');
+        } else {
+            showAlert(data.message, 'error');
+        }
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+async function deleteUser(userId, username) {
+    if (!confirm('确定要删除用户「' + username + '」吗？\n该操作将同时删除该用户的所有关联数据（选课记录、成绩等），不可撤销！')) return;
+    try {
+        var resp = await fetch('/api/admin/users/' + userId, {
+            method: 'DELETE',
+            headers: authHeader()
+        });
+        var data = await resp.json();
+        if (data.code === 200) {
+            showAlert('用户已删除', 'success');
             loadUsers();
         } else {
             showAlert(data.message, 'error');

@@ -102,3 +102,7 @@ jwxt/
 | review | 代码审查 |
 | security-review | 安全审查 |
 | simplify | 代码质量检查 |
+| java-springboot | Spring Boot 最佳实践指导 |
+| code-simplifier | Sentry 出品的代码精简工具 |
+| java-testing | Java 测试编写指导（JUnit 5, Mockito） |
+| fewer-permission-prompts | 减少权限弹窗 |

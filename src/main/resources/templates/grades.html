@@ -79,7 +79,7 @@
 
 <div th:replace="fragments :: scripts"></div>
 
-<script>
+<script th:inline="javascript">
 var ROLE = /*[[${role}]]*/ 'STUDENT';
 var currentCourseId = null;
 var currentGrades = [];

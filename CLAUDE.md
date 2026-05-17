@@ -34,6 +34,49 @@ taskkill //F //IM java.exe
 
 清空数据库重新初始化：`mysql -u root -e "DROP DATABASE IF EXISTS jwxt; CREATE DATABASE jwxt;"`
 
+### application.yml 关键配置
+
+| 配置项 | 值 | 说明 |
+|--------|-----|------|
+| `server.port` | 8080 | 应用端口 |
+| `spring.datasource.url` | `jdbc:mysql://localhost:3306/jwxt?...&createDatabaseIfNotExist=true` | 自动建库 |
+| `spring.jpa.hibernate.ddl-auto` | `update` | 自动建表/更新表结构 |
+| `spring.jpa.show-sql` | `true` | 打印 SQL（开发调试） |
+| `spring.thymeleaf.cache` | `false` | 关闭模板缓存，修改即时生效 |
+| `jwt.secret` | `jwxt-jwt-secret-key-2026-...` | JWT 签名密钥 |
+| `jwt.expiration` | `86400000` | Token 有效期 24 小时 |
+| `springdoc.api-docs.path` | `/api-docs` | OpenAPI JSON 文档路径 |
+| `springdoc.swagger-ui.path` | `/swagger-ui.html` | Swagger UI 页面 |
+
+## 局域网共享
+
+校园网通常有 AP 隔离（客户端间无法互访），需要使用**手机热点**构建独立局域网：
+
+### 1. 防火墙开放端口（需管理员权限）
+
+```cmd
+netsh advfirewall firewall add rule name="JWXT 8080" dir=in action=allow protocol=tcp localport=8080
+```
+
+验证：`netsh advfirewall firewall show rule name="JWXT 8080"`
+
+### 2. 启动应用
+
+```cmd
+set JAVA_HOME=D:\Software\JDK17\jdk-17.0.19+10
+set PATH=%JAVA_HOME%\bin;D:\Software\Maven\apache-maven-3.9.9\bin;%PATH%
+mvn spring-boot:run
+```
+
+### 3. 手机热点共享
+
+1. 手机开启个人热点
+2. 电脑连上热点 WiFi
+3. 查看新 IP：`ipconfig | findstr "IPv4"`（通常为 `192.168.x.x`）
+4. 手机（或连同一热点的设备）访问 `http://<新IP>:8080/login`
+
+此方案绕过了校园网 AP 隔离，同一热点下的设备均可访问。
+
 ## 架构概览
 
 ```
@@ -41,8 +84,11 @@ taskkill //F //IM java.exe
 ```
 
 - **页面路由**: `PageController`（`@Controller`）返回 Thymeleaf 模板，传入 `username`/`role` 到 Model
+- **页面清单**: `/login` → `login.html`, `/register` → `register.html`, `/index` → `index.html`, `/courses` → `courses.html`, `/schedule` → `schedule.html`, `/grades` → `grades.html`, `/admin/users` → `admin/users.html`
 - **API 路由**: `@RestController` 类返回 JSON，统一封装为 `Result<T>`（`{code, message, data}`）
+- **安全配置**: `config/SecurityConfig.java` — CSRF 已禁用，会话策略 STATELESS（无状态 JWT）
 - **角色**: STUDENT / TEACHER / ADMIN（`Role` 枚举），Spring Security 方法级 `@PreAuthorize` + URL 级配置
+- **身份注入**: `config/JwtAuthenticationFilter.java` 从 Header（`Authorization: Bearer <token>`）或 Cookie（`jwxt_token`）提取 JWT，构建 `UsernamePasswordAuthenticationToken`（principal=username, credentials=userId, authorities=[ROLE_xxx]）
 
 ## 认证流程
 
@@ -69,6 +115,21 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 ```
 
 `SecurityConfig` 做了 URL 级拦截，部分 Controller 方法上还有 `@PreAuthorize` 注解。
+
+## DTO/VO 层
+
+| 类 | 方向 | 用途 |
+|----|------|------|
+| `LoginRequest` | 入参 | 登录表单（username, password） |
+| `RegisterRequest` | 入参 | 注册表单 |
+| `CourseRequest` | 入参 | 课程创建/编辑（含 schedule, location 字符串） |
+| `GradeRequest` | 入参 | 成绩录入/编辑（score, gpaPoint） |
+| `LoginResponse` | 返回值 | 登录成功返回（token, username, role） |
+| `CourseVO` | 返回值 | 课程视图（含 teacherName, enrolledCount, enrolled, 拼接后的 schedule/location） |
+| `GradeVO` | 返回值 | 成绩视图（含 studentName, courseName） |
+| `ScheduleVO` | 返回值 | 课表项（每个 CourseSlot 一条，含 courseName, teacherName, schedule） |
+
+`Result<T>` 统一包装：`{code: 200, message: "ok", data: T}`。异常由 `GlobalExceptionHandler` 处理，`BusinessException` 用于业务校验失败。
 
 ## 核心业务规则
 
@@ -119,7 +180,7 @@ Course (1) ──── (N) CourseSlot
 
 **前端已完成**: `style.css`（樱花主题）、`login.html`、`register.html`、`fragments.html`（导航栏 + 共享 JS）、`index.html`（首页仪表盘）、`courses.html`（课程浏览/管理）、`schedule.html`（学生课表）、`grades.html`（成绩查询/管理）、`admin/users.html`（用户管理）
 
-**无测试**。
+**无测试**。API 文档可通过 `/swagger-ui.html` 查看（SpringDoc OpenAPI 3.0，无需认证）。
 
 ## 注意
 
