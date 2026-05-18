@@ -2,6 +2,7 @@ package com.jwxt.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 
 public class CourseRequest {
     @NotBlank(message = "课程名称不能为空")
@@ -18,7 +19,7 @@ public class CourseRequest {
     @NotNull(message = "学分不能为空")
     private Float credit;
 
-    private String schedule;
+    private List<String> schedules;
 
     private String location;
 
@@ -32,8 +33,8 @@ public class CourseRequest {
     public void setSemester(String semester) { this.semester = semester; }
     public Float getCredit() { return credit; }
     public void setCredit(Float credit) { this.credit = credit; }
-    public String getSchedule() { return schedule; }
-    public void setSchedule(String schedule) { this.schedule = schedule; }
+    public List<String> getSchedules() { return schedules; }
+    public void setSchedules(List<String> schedules) { this.schedules = schedules; }
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
 }

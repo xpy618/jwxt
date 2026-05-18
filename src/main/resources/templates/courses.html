@@ -69,7 +69,38 @@
             </div>
             <div class="form-group">
                 <label>上课时间</label>
-                <input type="text" id="course-schedule" placeholder="例如 周一 8:00-9:40">
+                <div class="schedule-picker">
+                    <div class="picker-header"></div>
+                    <div class="picker-header">周一</div>
+                    <div class="picker-header">周二</div>
+                    <div class="picker-header">周三</div>
+                    <div class="picker-header">周四</div>
+                    <div class="picker-header">周五</div>
+                    <div class="picker-row-label">第一大节<br><small>08:20-10:00</small></div>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周一 08:20-10:00"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周二 08:20-10:00"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周三 08:20-10:00"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周四 08:20-10:00"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周五 08:20-10:00"></label>
+                    <div class="picker-row-label">第二大节<br><small>10:20-12:00</small></div>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周一 10:20-12:00"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周二 10:20-12:00"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周三 10:20-12:00"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周四 10:20-12:00"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周五 10:20-12:00"></label>
+                    <div class="picker-row-label">第三大节<br><small>14:30-16:10</small></div>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周一 14:30-16:10"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周二 14:30-16:10"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周三 14:30-16:10"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周四 14:30-16:10"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周五 14:30-16:10"></label>
+                    <div class="picker-row-label">第四大节<br><small>16:30-18:10</small></div>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周一 16:30-18:10"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周二 16:30-18:10"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周三 16:30-18:10"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周四 16:30-18:10"></label>
+                    <label class="picker-cell"><input type="checkbox" name="schedules" value="周五 16:30-18:10"></label>
+                </div>
             </div>
             <div class="form-group">
                 <label>上课地点</label>
@@ -192,8 +223,8 @@ function openCourseModal() {
     document.getElementById('course-credit').value = '';
     document.getElementById('course-max').value = '';
     document.getElementById('course-semester').value = '';
-    document.getElementById('course-schedule').value = '';
     document.getElementById('course-location').value = '';
+    document.querySelectorAll('input[name="schedules"]').forEach(function(cb) { cb.checked = false; });
     document.getElementById('course-modal').classList.add('active');
 }
 
@@ -206,8 +237,12 @@ function editCourseFromButton(btn) {
     document.getElementById('course-credit').value = c.credit;
     document.getElementById('course-max').value = c.maxStudents;
     document.getElementById('course-semester').value = c.semester;
-    document.getElementById('course-schedule').value = c.schedule || '';
     document.getElementById('course-location').value = c.location || '';
+    // Parse existing schedules and check matching checkboxes
+    var existingSchedules = c.schedule ? c.schedule.split('；') : [];
+    document.querySelectorAll('input[name="schedules"]').forEach(function(cb) {
+        cb.checked = existingSchedules.indexOf(cb.value) !== -1;
+    });
     document.getElementById('course-modal').classList.add('active');
 }
 
@@ -218,13 +253,17 @@ function closeCourseModal() {
 async function saveCourse(e) {
     e.preventDefault();
     var id = document.getElementById('course-id').value;
+    var schedules = [];
+    document.querySelectorAll('input[name="schedules"]:checked').forEach(function(cb) {
+        schedules.push(cb.value);
+    });
     var body = {
         name: document.getElementById('course-name').value,
         description: document.getElementById('course-desc').value,
         credit: parseFloat(document.getElementById('course-credit').value),
         maxStudents: parseInt(document.getElementById('course-max').value),
         semester: document.getElementById('course-semester').value,
-        schedule: document.getElementById('course-schedule').value,
+        schedules: schedules,
         location: document.getElementById('course-location').value
     };
     var method = id ? 'PUT' : 'POST';

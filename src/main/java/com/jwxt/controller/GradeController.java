@@ -48,17 +48,17 @@ public class GradeController {
         return Result.success(gradeService.saveOrUpdate(request));
     }
 
-    @PostMapping("/submit/{courseId}")
-    @PreAuthorize("hasRole('TEACHER')")
-    public Result<Void> submit(@PathVariable Long courseId) {
-        gradeService.submit(courseId);
-        return Result.success();
-    }
-
     @PostMapping("/publish/{courseId}")
     @PreAuthorize("hasRole('TEACHER')")
     public Result<Void> publish(@PathVariable Long courseId) {
         gradeService.publish(courseId);
+        return Result.success();
+    }
+
+    @PostMapping("/withdraw/{courseId}")
+    @PreAuthorize("hasRole('TEACHER')")
+    public Result<Void> withdraw(@PathVariable Long courseId) {
+        gradeService.withdraw(courseId);
         return Result.success();
     }
 

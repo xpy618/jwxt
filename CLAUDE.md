@@ -32,6 +32,17 @@ taskkill //F //IM java.exe
 
 种子账号（密码均为 `123456`）：`admin`(管理员)、`zengzr`/`liutk`/`sunqt`/`zongliang`/`zengdt`/`tangyong`/`zhanyz`(教师)、`student`/`student2`(学生)。
 
+种子课程（DataInitializer 自动创建，含多时段）：
+| 课程 | 教师 | 学分 | 时段数 |
+|------|------|------|--------|
+| 机器学习 | 曾增日 | 3.0 | 4 |
+| 数据库原理与应用 | 曾德天 | 3.0 | 2 |
+| 操作系统原理与Linux应用 | 曾德天 | 3.5 | 2 |
+| 计算机网络 | 宗亮 | 3.0 | 3 |
+| 毛泽东思想和中国特色社会主义理论体系概论 | 孙其庭 | 3.0 | 1 |
+| 人工智能数学基础 | 宗亮 | 3.0 | 1 |
+| 大学体育(四)(羽毛球3-56) | 唐勇 | 1.0 | 1 |
+
 清空数据库重新初始化：`mysql -u root -e "DROP DATABASE IF EXISTS jwxt; CREATE DATABASE jwxt;"`
 
 ### application.yml 关键配置
@@ -111,7 +122,8 @@ GET /api/courses/**       → permitAll（浏览课程）
 POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 /api/enrollments/**       → STUDENT
 /api/grades/teacher/**    → TEACHER
-/api/grades/submit|publish → TEACHER
+/api/grades/publish/**     → TEACHER
+/api/grades/withdraw/**    → TEACHER
 /api/admin/**             → ADMIN（含重置密码、删除用户等）
 其他所有请求               → authenticated
 ```
@@ -124,7 +136,7 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 |----|------|------|
 | `LoginRequest` | 入参 | 登录表单（username, password） |
 | `RegisterRequest` | 入参 | 注册表单 |
-| `CourseRequest` | 入参 | 课程创建/编辑（含 schedule, location 字符串） |
+| `CourseRequest` | 入参 | 课程创建/编辑（含 schedules 列表, location 字符串） |
 | `GradeRequest` | 入参 | 成绩录入/编辑（score, gpaPoint） |
 | `LoginResponse` | 返回值 | 登录成功返回（token, username, role） |
 | `CourseVO` | 返回值 | 课程视图（含 teacherName, enrolledCount, enrolled, 拼接后的 schedule/location） |
@@ -140,8 +152,9 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 - **时间冲突**: 同一学生选多门课时，遍历两门课的所有 CourseSlot，若任一 schedule 字符串相同则拒绝
 
 ### 成绩
-- **流程**: DRAFT → SUBMITTED（教师提交）→ PUBLISHED（教师发布），发布后不可修改
+- **流程**: 教师保存 → DRAFT（草稿），教师发布 → PUBLISHED（已发布，学生可见），教师撤回 → DRAFT。DRAFT ⇄ PUBLISHED 双向可逆，已发布成绩不可直接修改（需先撤回）
 - **GPA**: 标准 4.0 算法，仅计算已发布成绩，`(∑ gpaPoint × credit) / ∑ credit`
+- **成绩 roster**: `getCourseGrades()` 合并 `Enrollment` 和 `Grade` 两张表，返回全部选课学生。无成绩记录的学生 `id/score/status` 均为 null，前端显示"未录入"徽章和空输入框
 
 ### 管理员特权
 - **强制删课**: 无视选课人数限制，同时清空关联的选课记录、成绩和时段（`CourseService.forceDelete()`）
@@ -178,6 +191,8 @@ Course (1) ──── (N) CourseSlot
 
 `parseSchedule()` 函数提取 schedule 字符串的"周X"和开始时间进行网格定位。修改格式需同步改前端。
 
+**课程表单**使用复选框网格选择时段（`courses.html` 中的 `.schedule-picker`），教师勾选 5 天×4 大节的组合，前端收集为 `schedules` 数组提交，后端遍历创建多条 `CourseSlot` 记录。编辑时已有 schedule 字符串按 `；` 分割回填勾选状态。
+
 ## 前端静态资源
 
 - **HTMX**: 已本地化，存放在 `static/js/htmx.min.js`（47KB），不再依赖 unpkg CDN
@@ -185,13 +200,7 @@ Course (1) ──── (N) CourseSlot
 - **CSS**: `static/css/style.css`，樱花粉 (#FFB7C5) 配色方案，CSS 变量统一管理
 - **页面编辑按钮**: 使用 `data-course` 属性 + `JSON.stringify` 传值，避免内联 onclick 参数蔓延和 XSS 风险
 
-## 当前状态
-
-**v2.0** — 管理员特权版。管理员可重置密码、删除用户（级联）、强制删除课程（无视选课限制）。修复了 Thymeleaf `th:inline="javascript"` 缺失导致角色判断失效的 bug。
-
-**已完成**: 全部后端（实体/Repository/Service/Controller/安全配置/数据初始化），pom.xml，application.yml，通用组件（Result/异常处理）
-
-**前端已完成**: `style.css`（樱花主题）、`login.html`、`register.html`、`fragments.html`（导航栏 + 共享 JS）、`index.html`（首页仪表盘）、`courses.html`（课程浏览/管理）、`schedule.html`（学生课表）、`grades.html`（成绩查询/管理）、`admin/users.html`（用户管理，含重置密码/删除）
+**当前版本 v2.2** — 成绩流程简化（去掉提交步骤，新增撤回）+ 课程多时段选择器（复选框网格替代手动输入）+ 选课友好提示（emoji）。
 
 **无测试**。API 文档可通过 `/swagger-ui.html` 查看（SpringDoc OpenAPI 3.0，无需认证）。
 

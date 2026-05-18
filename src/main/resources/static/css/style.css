@@ -603,7 +603,7 @@ table tr:hover td {
     background: white;
     border-radius: var(--radius-xl);
     padding: 36px 32px;
-    width: 480px;
+    width: 560px;
     max-width: 90vw;
     max-height: 85vh;
     overflow-y: auto;
@@ -622,6 +622,66 @@ table tr:hover td {
     gap: 12px;
     justify-content: flex-end;
     margin-top: 24px;
+}
+
+/* ===== Schedule Picker (course form) ===== */
+.schedule-picker {
+    display: grid;
+    grid-template-columns: 72px repeat(5, 1fr);
+    gap: 2px;
+    background: var(--pink-light);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.picker-header {
+    background: var(--cream);
+    color: var(--pink-deep);
+    font-weight: 700;
+    font-size: 12px;
+    text-align: center;
+    padding: 8px 2px;
+}
+
+.picker-row-label {
+    background: var(--cream);
+    color: var(--pink-deep);
+    font-weight: 700;
+    font-size: 12px;
+    text-align: center;
+    padding: 6px 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.3;
+}
+
+.picker-row-label small {
+    font-weight: 400;
+    font-size: 10px;
+    color: var(--text-lighter);
+}
+
+.picker-cell {
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 6px;
+    transition: background 0.2s;
+}
+
+.picker-cell:hover {
+    background: var(--pink-lighter);
+}
+
+.picker-cell input[type="checkbox"] {
+    accent-color: var(--pink);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
 }
 
 /* ===== Schedule Table ===== */

@@ -53,11 +53,11 @@
             <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <h2>📊 成绩管理</h2>
-                    <p>录入、提交与发布学生成绩</p>
+                    <p>录入、发布与撤回学生成绩</p>
                 </div>
                 <div style="display:flex; gap:8px;">
-                    <button id="btn-submit" class="btn btn-outline btn-sm" onclick="submitGrades()" disabled>提交成绩</button>
                     <button id="btn-publish" class="btn btn-success btn-sm" onclick="publishGrades()" disabled>发布成绩</button>
+                    <button id="btn-withdraw" class="btn btn-outline btn-sm" onclick="withdrawGrades()" disabled>撤回成绩</button>
                 </div>
             </div>
 
@@ -96,9 +96,9 @@ function esc(s) {
 }
 
 function statusBadge(s) {
-    var cls = s === 'PUBLISHED' ? 'badge-published' : (s === 'SUBMITTED' ? 'badge-submitted' : 'badge-draft');
-    var label = s === 'PUBLISHED' ? '已发布' : (s === 'SUBMITTED' ? '已提交' : '草稿');
-    return '<span class="badge ' + cls + '">' + label + '</span>';
+    if (s === 'PUBLISHED') return '<span class="badge badge-published">已发布</span>';
+    if (s === 'DRAFT') return '<span class="badge badge-draft">草稿</span>';
+    return '';
 }
 
 // ===== STUDENT =====
@@ -232,26 +232,20 @@ async function loadTeacherGrades() {
 }
 
 function updateTeacherButtons(grades) {
-    var btnSubmit = document.getElementById('btn-submit');
     var btnPublish = document.getElementById('btn-publish');
+    var btnWithdraw = document.getElementById('btn-withdraw');
     if (!grades || grades.length === 0) {
-        btnSubmit.disabled = true;
         btnPublish.disabled = true;
+        btnWithdraw.disabled = true;
         return;
     }
-    var statuses = [];
+    var hasDraft = false, hasPublished = false;
     for (var i = 0; i < grades.length; i++) {
-        if (grades[i].status) statuses.push(grades[i].status);
+        if (grades[i].status === 'DRAFT') hasDraft = true;
+        if (grades[i].status === 'PUBLISHED') hasPublished = true;
     }
-    if (statuses.length === 0) {
-        btnSubmit.disabled = true;
-        btnPublish.disabled = true;
-        return;
-    }
-    var allDraft = statuses.every(function(s) { return s === 'DRAFT'; });
-    var allSubmitted = statuses.every(function(s) { return s === 'SUBMITTED'; });
-    btnSubmit.disabled = !allDraft;
-    btnPublish.disabled = !allSubmitted;
+    btnPublish.disabled = !hasDraft;
+    btnWithdraw.disabled = !hasPublished;
 }
 
 async function saveOneGrade(idx) {
@@ -280,17 +274,17 @@ async function saveOneGrade(idx) {
     }
 }
 
-async function submitGrades() {
+async function publishGrades() {
     if (!currentCourseId) return;
-    if (!confirm('提交后成绩将不可修改（仅可发布），确认提交？')) return;
+    if (!confirm('发布后学生将可查看成绩，确认发布？')) return;
     try {
-        var resp = await fetch('/api/grades/submit/' + currentCourseId, {
+        var resp = await fetch('/api/grades/publish/' + currentCourseId, {
             method: 'POST',
             headers: authHeader()
         });
         var data = await resp.json();
         if (data.code === 200) {
-            showAlert('成绩已提交', 'success');
+            showAlert('成绩已发布', 'success');
             loadTeacherGrades();
         } else {
             showAlert(data.message, 'error');
@@ -300,17 +294,17 @@ async function submitGrades() {
     }
 }
 
-async function publishGrades() {
+async function withdrawGrades() {
     if (!currentCourseId) return;
-    if (!confirm('发布后成绩将不可再修改，确认发布？')) return;
+    if (!confirm('撤回后成绩将变为草稿状态，确认撤回？')) return;
     try {
-        var resp = await fetch('/api/grades/publish/' + currentCourseId, {
+        var resp = await fetch('/api/grades/withdraw/' + currentCourseId, {
             method: 'POST',
             headers: authHeader()
         });
         var data = await resp.json();
         if (data.code === 200) {
-            showAlert('成绩已发布', 'success');
+            showAlert('成绩已撤回', 'success');
             loadTeacherGrades();
         } else {
             showAlert(data.message, 'error');

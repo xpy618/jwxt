@@ -26,9 +26,6 @@ public class Grade {
     @Column(nullable = false, length = 10)
     private GradeStatus status = GradeStatus.DRAFT;
 
-    @Column(name = "submitted_at")
-    private LocalDateTime submittedAt;
-
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
@@ -44,8 +41,6 @@ public class Grade {
     public void setGpaPoint(Float gpaPoint) { this.gpaPoint = gpaPoint; }
     public GradeStatus getStatus() { return status; }
     public void setStatus(GradeStatus status) { this.status = status; }
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
     public LocalDateTime getPublishedAt() { return publishedAt; }
     public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
 }

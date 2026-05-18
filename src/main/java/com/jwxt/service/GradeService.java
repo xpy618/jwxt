@@ -54,26 +54,27 @@ public class GradeService {
     }
 
     @Transactional
-    public void submit(Long courseId) {
-        List<Grade> grades = gradeRepository.findByCourseId(courseId);
-        for (Grade g : grades) {
-            if (g.getStatus() == GradeStatus.DRAFT) {
-                g.setStatus(GradeStatus.SUBMITTED);
-                g.setSubmittedAt(LocalDateTime.now());
-            }
-        }
-        gradeRepository.saveAll(grades);
-    }
-
-    @Transactional
     public void publish(Long courseId) {
-        List<Grade> grades = gradeRepository.findByCourseIdAndStatus(courseId, GradeStatus.SUBMITTED);
+        List<Grade> grades = gradeRepository.findByCourseIdAndStatus(courseId, GradeStatus.DRAFT);
         if (grades.isEmpty()) {
             throw new BusinessException("没有待发布的成绩");
         }
         for (Grade g : grades) {
             g.setStatus(GradeStatus.PUBLISHED);
             g.setPublishedAt(LocalDateTime.now());
+        }
+        gradeRepository.saveAll(grades);
+    }
+
+    @Transactional
+    public void withdraw(Long courseId) {
+        List<Grade> grades = gradeRepository.findByCourseIdAndStatus(courseId, GradeStatus.PUBLISHED);
+        if (grades.isEmpty()) {
+            throw new BusinessException("没有可撤回的成绩");
+        }
+        for (Grade g : grades) {
+            g.setStatus(GradeStatus.DRAFT);
+            g.setPublishedAt(null);
         }
         gradeRepository.saveAll(grades);
     }

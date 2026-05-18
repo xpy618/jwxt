@@ -50,7 +50,7 @@ public class CourseService {
         course.setSemester(request.getSemester());
         course.setCredit(request.getCredit());
         course = courseRepository.save(course);
-        saveSlot(course.getId(), request.getSchedule(), request.getLocation());
+        saveSlots(course.getId(), request.getSchedules(), request.getLocation());
         return course;
     }
 
@@ -65,17 +65,21 @@ public class CourseService {
         course.setCredit(request.getCredit());
         course = courseRepository.save(course);
         slotRepository.deleteByCourseId(courseId);
-        saveSlot(course.getId(), request.getSchedule(), request.getLocation());
+        saveSlots(course.getId(), request.getSchedules(), request.getLocation());
         return course;
     }
 
-    private void saveSlot(Long courseId, String schedule, String location) {
-        if (schedule != null && !schedule.isBlank()) {
-            CourseSlot slot = new CourseSlot();
-            slot.setCourseId(courseId);
-            slot.setSchedule(schedule);
-            slot.setLocation(location);
-            slotRepository.save(slot);
+    private void saveSlots(Long courseId, List<String> schedules, String location) {
+        if (schedules != null && !schedules.isEmpty()) {
+            for (String schedule : schedules) {
+                if (schedule != null && !schedule.isBlank()) {
+                    CourseSlot slot = new CourseSlot();
+                    slot.setCourseId(courseId);
+                    slot.setSchedule(schedule);
+                    slot.setLocation(location != null && !location.isBlank() ? location : null);
+                    slotRepository.save(slot);
+                }
+            }
         }
     }
 
@@ -118,7 +122,7 @@ public class CourseService {
         Course course = getById(courseId);
         long currentCount = enrollmentRepository.countByCourseId(courseId);
         if (currentCount >= course.getMaxStudents()) {
-            throw new BusinessException("课程已满，无法选课");
+            throw new BusinessException("人满了哦 😅");
         }
         if (enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId).isPresent()) {
             throw new BusinessException("已选过该课程");
@@ -148,17 +152,12 @@ public class CourseService {
         Map<Long, List<CourseSlot>> slotsByCourse = allEnrolledSlots.stream()
                 .collect(Collectors.groupingBy(CourseSlot::getCourseId));
 
-        Map<Long, Course> courseCache = courseRepository.findAllById(enrolledCourseIds).stream()
-                .collect(Collectors.toMap(Course::getId, c -> c));
-
         for (Enrollment enr : enrollments) {
             List<CourseSlot> enrolledSlots = slotsByCourse.get(enr.getCourseId());
             if (enrolledSlots == null) continue;
             for (CourseSlot es : enrolledSlots) {
                 if (newSlotSchedules.contains(es.getSchedule())) {
-                    Course enrolledCourse = courseCache.get(enr.getCourseId());
-                    String courseName = enrolledCourse != null ? enrolledCourse.getName() : "未知课程";
-                    throw new BusinessException("上课时间冲突：已选课程「" + courseName + "」有时间重叠");
+                    throw new BusinessException("选不了了哦 ⏰");
                 }
             }
         }
