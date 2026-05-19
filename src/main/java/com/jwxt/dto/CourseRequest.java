@@ -19,6 +19,8 @@ public class CourseRequest {
     @NotNull(message = "学分不能为空")
     private Float credit;
 
+    private Long teacherId;
+
     private List<String> schedules;
 
     private String location;
@@ -33,6 +35,8 @@ public class CourseRequest {
     public void setSemester(String semester) { this.semester = semester; }
     public Float getCredit() { return credit; }
     public void setCredit(Float credit) { this.credit = credit; }
+    public Long getTeacherId() { return teacherId; }
+    public void setTeacherId(Long teacherId) { this.teacherId = teacherId; }
     public List<String> getSchedules() { return schedules; }
     public void setSchedules(List<String> schedules) { this.schedules = schedules; }
     public String getLocation() { return location; }

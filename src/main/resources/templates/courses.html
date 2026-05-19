@@ -65,7 +65,13 @@
             </div>
             <div class="form-group">
                 <label>学期 *</label>
-                <input type="text" id="course-semester" placeholder="例如 2025-2026-2" required>
+                <input type="text" id="course-semester" placeholder="例如 2025-2026-2" value="2025-2026-2" required>
+            </div>
+            <div class="form-group">
+                <label>任课教师</label>
+                <select id="course-teacher" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+                    <option value="">（默认：本人）</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>上课时间</label>
@@ -222,9 +228,20 @@ function openCourseModal() {
     document.getElementById('course-desc').value = '';
     document.getElementById('course-credit').value = '';
     document.getElementById('course-max').value = '';
-    document.getElementById('course-semester').value = '';
+    document.getElementById('course-semester').value = '2025-2026-2';
     document.getElementById('course-location').value = '';
     document.querySelectorAll('input[name="schedules"]').forEach(function(cb) { cb.checked = false; });
+    var select = document.getElementById('course-teacher');
+    select.innerHTML = '<option value="">（默认：本人）</option>';
+    fetch('/api/courses/teachers', { headers: authHeader() }).then(function(resp) { return resp.json(); }).then(function(data) {
+        if (data.code === 200 && data.data) {
+            for (var i = 0; i < data.data.length; i++) {
+                var t = data.data[i];
+                select.innerHTML += '<option value="' + t.id + '">' + esc(t.name) + ' (' + esc(t.username) + ')</option>';
+            }
+        }
+    }).catch(function() {});
+    select.value = '';
     document.getElementById('course-modal').classList.add('active');
 }
 
@@ -238,6 +255,7 @@ function editCourseFromButton(btn) {
     document.getElementById('course-max').value = c.maxStudents;
     document.getElementById('course-semester').value = c.semester;
     document.getElementById('course-location').value = c.location || '';
+    document.getElementById('course-teacher').value = c.teacherId || '';
     // Parse existing schedules and check matching checkboxes
     var existingSchedules = c.schedule ? c.schedule.split('；') : [];
     document.querySelectorAll('input[name="schedules"]').forEach(function(cb) {
@@ -264,7 +282,8 @@ async function saveCourse(e) {
         maxStudents: parseInt(document.getElementById('course-max').value),
         semester: document.getElementById('course-semester').value,
         schedules: schedules,
-        location: document.getElementById('course-location').value
+        location: document.getElementById('course-location').value,
+        teacherId: document.getElementById('course-teacher').value ? parseInt(document.getElementById('course-teacher').value) : null
     };
     var method = id ? 'PUT' : 'POST';
     var url = id ? '/api/courses/' + id : '/api/courses';

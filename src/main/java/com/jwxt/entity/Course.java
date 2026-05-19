@@ -16,7 +16,7 @@ public class Course {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "teacher_id", nullable = false)
+    @Column(name = "teacher_id")
     private Long teacherId;
 
     @Column(name = "max_students", nullable = false)

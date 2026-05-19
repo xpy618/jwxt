@@ -41,7 +41,7 @@ public class CourseService {
         Course course = new Course();
         course.setName(request.getName());
         course.setDescription(request.getDescription());
-        course.setTeacherId(teacherId);
+        course.setTeacherId(request.getTeacherId() != null ? request.getTeacherId() : teacherId);
         course.setMaxStudents(request.getMaxStudents());
         course.setSemester(request.getSemester());
         course.setCredit(request.getCredit());
@@ -59,6 +59,7 @@ public class CourseService {
         course.setMaxStudents(request.getMaxStudents());
         course.setSemester(request.getSemester());
         course.setCredit(request.getCredit());
+        course.setTeacherId(request.getTeacherId());
         course = courseRepository.save(course);
         slotRepository.deleteByCourseId(courseId);
         saveSlots(course.getId(), request.getSchedules(), request.getLocation());
@@ -122,6 +123,10 @@ public class CourseService {
         if (enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId).isPresent()) {
             throw new BusinessException("已选过该课程");
         }
+        float currentCredits = enrollmentRepository.sumCreditByStudentId(studentId);
+        if (currentCredits + course.getCredit() > 30) {
+            throw new BusinessException("选课总学分不能超过30，当前已选 " + currentCredits + " 学分");
+        }
         checkScheduleConflict(studentId, course);
         Enrollment enrollment = new Enrollment();
         enrollment.setStudentId(studentId);
@@ -165,7 +170,7 @@ public class CourseService {
         List<Long> courseIds = enrollments.stream().map(Enrollment::getCourseId).toList();
         Map<Long, Course> courseMap = courseRepository.findAllById(courseIds).stream()
                 .collect(Collectors.toMap(Course::getId, c -> c));
-        Set<Long> teacherIds = courseMap.values().stream().map(Course::getTeacherId).collect(Collectors.toSet());
+        Set<Long> teacherIds = courseMap.values().stream().map(Course::getTeacherId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, String> teacherNameMap = userRepository.findAllById(teacherIds).stream()
                 .collect(Collectors.toMap(User::getId, User::getName));
         List<CourseSlot> allSlots = slotRepository.findByCourseIdIn(courseIds);
@@ -223,7 +228,7 @@ public class CourseService {
         Set<Long> teacherIds = new HashSet<>();
         for (Course c : courses) {
             courseIds.add(c.getId());
-            teacherIds.add(c.getTeacherId());
+            if (c.getTeacherId() != null) teacherIds.add(c.getTeacherId());
         }
 
         Map<Long, String> teacherNameMap = userRepository.findAllById(teacherIds).stream()

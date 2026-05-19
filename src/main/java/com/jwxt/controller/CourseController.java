@@ -5,6 +5,8 @@ import com.jwxt.dto.CourseRequest;
 import com.jwxt.dto.CourseVO;
 import com.jwxt.entity.Course;
 import com.jwxt.entity.Role;
+import com.jwxt.entity.User;
+import com.jwxt.repository.UserRepository;
 import com.jwxt.service.CourseService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,9 +20,11 @@ import java.util.List;
 public class CourseController {
 
     private final CourseService courseService;
+    private final UserRepository userRepository;
 
-    public CourseController(CourseService courseService) {
+    public CourseController(CourseService courseService, UserRepository userRepository) {
         this.courseService = courseService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -69,6 +73,12 @@ public class CourseController {
     @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     public Result<Course> update(@PathVariable Long id, @Valid @RequestBody CourseRequest request) {
         return Result.success(courseService.update(id, request));
+    }
+
+    @GetMapping("/teachers")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public Result<List<User>> listTeachers() {
+        return Result.success(userRepository.findByRole(Role.TEACHER));
     }
 
     @DeleteMapping("/{id}")

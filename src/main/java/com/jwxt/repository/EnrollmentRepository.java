@@ -23,4 +23,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
     @Query("SELECT e FROM Enrollment e JOIN Course c ON e.courseId = c.id WHERE e.studentId = ?1 AND c.semester = ?2")
     List<Enrollment> findByStudentIdAndSemester(Long studentId, String semester);
+
+    @Query("SELECT COALESCE(SUM(c.credit), 0) FROM Enrollment e JOIN Course c ON e.courseId = c.id WHERE e.studentId = ?1")
+    float sumCreditByStudentId(Long studentId);
 }
