@@ -137,7 +137,7 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 | `LoginRequest` | 入参 | 登录表单（username, password） |
 | `RegisterRequest` | 入参 | 注册表单 |
 | `CourseRequest` | 入参 | 课程创建/编辑（含 schedules 列表, location 字符串） |
-| `GradeRequest` | 入参 | 成绩录入/编辑（score, gpaPoint） |
+| `GradeRequest` | 入参 | 成绩录入/编辑（studentId, courseId, score） |
 | `LoginResponse` | 返回值 | 登录成功返回（token, username, role） |
 | `CourseVO` | 返回值 | 课程视图（含 teacherName, enrolledCount, enrolled, 拼接后的 schedule/location） |
 | `GradeVO` | 返回值 | 成绩视图（含 studentName, courseName） |
@@ -154,7 +154,7 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 ### 成绩
 - **流程**: 教师保存 → DRAFT（草稿），教师发布 → PUBLISHED（已发布，学生可见），教师撤回 → DRAFT。DRAFT ⇄ PUBLISHED 双向可逆，已发布成绩不可直接修改（需先撤回）
 - **GPA**: 标准 4.0 算法，仅计算已发布成绩，`(∑ gpaPoint × credit) / ∑ credit`
-- **成绩 roster**: `getCourseGrades()` 合并 `Enrollment` 和 `Grade` 两张表，返回全部选课学生。无成绩记录的学生 `id/score/status` 均为 null，前端显示"未录入"徽章和空输入框
+- **成绩 roster**: `getCourseGrades()` 返回该课程全部选课学生（Enrollment 列表）。status 为 null 的学生显示"未录入"，status=DRAFT/PUBLISHED 显示对应状态
 
 ### 管理员特权
 - **强制删课**: 无视选课人数限制，同时清空关联的选课记录、成绩和时段（`CourseService.forceDelete()`）
@@ -200,9 +200,9 @@ Course (1) ──── (N) CourseSlot
 - **CSS**: `static/css/style.css`，樱花粉 (#FFB7C5) 配色方案，CSS 变量统一管理
 - **页面编辑按钮**: 使用 `data-course` 属性 + `JSON.stringify` 传值，避免内联 onclick 参数蔓延和 XSS 风险
 
-**当前版本 v2.2** — 成绩流程简化（去掉提交步骤，新增撤回）+ 课程多时段选择器（复选框网格替代手动输入）+ 选课友好提示（emoji）。
+**当前版本 v3.0** — Grade 实体已合并到 Enrollment，共 4 个实体（User/Course/CourseSlot/Enrollment）。Enrollment 承载成绩字段（score/gpaPoint/status/publishedAt），status 为 null 表示未录入、DRAFT 为草稿、PUBLISHED 为已发布。
 
-**无测试**。API 文档可通过 `/swagger-ui.html` 查看（SpringDoc OpenAPI 3.0，无需认证）。
+参考 E-R 图：`reference-er/`（OpenTextBC 大学注册模型，5 实体经典设计）。OPTIMIZE.md 记录了后续优化方向。
 
 ## 注意
 

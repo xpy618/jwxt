@@ -3,7 +3,7 @@ package com.jwxt.controller;
 import com.jwxt.common.Result;
 import com.jwxt.dto.GradeRequest;
 import com.jwxt.dto.GradeVO;
-import com.jwxt.entity.Grade;
+import com.jwxt.entity.Enrollment;
 import com.jwxt.service.GradeService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,7 +44,7 @@ public class GradeController {
 
     @PostMapping("/teacher/save")
     @PreAuthorize("hasRole('TEACHER')")
-    public Result<Grade> saveGrade(@Valid @RequestBody GradeRequest request) {
+    public Result<Enrollment> saveGrade(@Valid @RequestBody GradeRequest request) {
         return Result.success(gradeService.saveOrUpdate(request));
     }
 

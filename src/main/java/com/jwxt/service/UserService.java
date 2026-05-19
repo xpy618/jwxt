@@ -7,7 +7,10 @@ import com.jwxt.dto.LoginResponse;
 import com.jwxt.dto.RegisterRequest;
 import com.jwxt.entity.Role;
 import com.jwxt.entity.User;
-import com.jwxt.repository.*;
+import com.jwxt.repository.CourseRepository;
+import com.jwxt.repository.CourseSlotRepository;
+import com.jwxt.repository.EnrollmentRepository;
+import com.jwxt.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,18 +24,16 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final EnrollmentRepository enrollmentRepository;
-    private final GradeRepository gradeRepository;
     private final CourseRepository courseRepository;
     private final CourseSlotRepository courseSlotRepository;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils,
-                       EnrollmentRepository enrollmentRepository, GradeRepository gradeRepository,
+                       EnrollmentRepository enrollmentRepository,
                        CourseRepository courseRepository, CourseSlotRepository courseSlotRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
         this.enrollmentRepository = enrollmentRepository;
-        this.gradeRepository = gradeRepository;
         this.courseRepository = courseRepository;
         this.courseSlotRepository = courseSlotRepository;
     }
@@ -102,14 +103,12 @@ public class UserService {
                     .map(c -> c.getId()).toList();
             for (Long courseId : courseIds) {
                 enrollmentRepository.findByCourseId(courseId).forEach(e -> enrollmentRepository.deleteById(e.getId()));
-                gradeRepository.deleteByCourseId(courseId);
                 courseSlotRepository.deleteByCourseId(courseId);
             }
             courseRepository.deleteAllById(courseIds);
         }
 
         enrollmentRepository.findByStudentId(userId).forEach(e -> enrollmentRepository.deleteById(e.getId()));
-        gradeRepository.deleteByStudentId(userId);
         userRepository.deleteById(userId);
     }
 

@@ -11,7 +11,6 @@ import com.jwxt.entity.User;
 import com.jwxt.repository.CourseRepository;
 import com.jwxt.repository.CourseSlotRepository;
 import com.jwxt.repository.EnrollmentRepository;
-import com.jwxt.repository.GradeRepository;
 import com.jwxt.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,18 +24,15 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final CourseSlotRepository slotRepository;
     private final EnrollmentRepository enrollmentRepository;
-    private final GradeRepository gradeRepository;
     private final UserRepository userRepository;
 
     public CourseService(CourseRepository courseRepository,
                          CourseSlotRepository slotRepository,
                          EnrollmentRepository enrollmentRepository,
-                         GradeRepository gradeRepository,
                          UserRepository userRepository) {
         this.courseRepository = courseRepository;
         this.slotRepository = slotRepository;
         this.enrollmentRepository = enrollmentRepository;
-        this.gradeRepository = gradeRepository;
         this.userRepository = userRepository;
     }
 
@@ -95,7 +91,6 @@ public class CourseService {
     @Transactional
     public void forceDelete(Long courseId) {
         enrollmentRepository.findByCourseId(courseId).forEach(e -> enrollmentRepository.deleteById(e.getId()));
-        gradeRepository.deleteByCourseId(courseId);
         slotRepository.deleteByCourseId(courseId);
         courseRepository.deleteById(courseId);
     }

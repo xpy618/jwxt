@@ -6,130 +6,98 @@ import com.jwxt.dto.GradeVO;
 import com.jwxt.entity.*;
 import com.jwxt.repository.CourseRepository;
 import com.jwxt.repository.EnrollmentRepository;
-import com.jwxt.repository.GradeRepository;
 import com.jwxt.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class GradeService {
 
-    private final GradeRepository gradeRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
-    private final EnrollmentRepository enrollmentRepository;
 
-    public GradeService(GradeRepository gradeRepository,
+    public GradeService(EnrollmentRepository enrollmentRepository,
                         CourseRepository courseRepository,
-                        UserRepository userRepository,
-                        EnrollmentRepository enrollmentRepository) {
-        this.gradeRepository = gradeRepository;
+                        UserRepository userRepository) {
+        this.enrollmentRepository = enrollmentRepository;
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
-        this.enrollmentRepository = enrollmentRepository;
     }
 
     @Transactional
-    public Grade saveOrUpdate(GradeRequest request) {
-        Grade grade = gradeRepository.findByStudentIdAndCourseId(request.getStudentId(), request.getCourseId())
-                .orElseGet(() -> {
-                    Grade g = new Grade();
-                    g.setStudentId(request.getStudentId());
-                    g.setCourseId(request.getCourseId());
-                    return g;
-                });
+    public Enrollment saveOrUpdate(GradeRequest request) {
+        Enrollment enrollment = enrollmentRepository
+                .findByStudentIdAndCourseId(request.getStudentId(), request.getCourseId())
+                .orElseThrow(() -> new BusinessException("该学生未选此课程"));
 
-        if (grade.getStatus() == GradeStatus.PUBLISHED) {
+        if (enrollment.getStatus() == GradeStatus.PUBLISHED) {
             throw new BusinessException("成绩已发布，无法修改");
         }
 
-        grade.setScore(request.getScore());
-        grade.setGpaPoint(calculateGpaPoint(request.getScore()));
-        return gradeRepository.save(grade);
+        enrollment.setScore(request.getScore());
+        enrollment.setGpaPoint(calculateGpaPoint(request.getScore()));
+        enrollment.setStatus(GradeStatus.DRAFT);
+        return enrollmentRepository.save(enrollment);
     }
 
     @Transactional
     public void publish(Long courseId) {
-        List<Grade> grades = gradeRepository.findByCourseIdAndStatus(courseId, GradeStatus.DRAFT);
-        if (grades.isEmpty()) {
+        List<Enrollment> drafts = enrollmentRepository.findByCourseIdAndStatus(courseId, GradeStatus.DRAFT);
+        if (drafts.isEmpty()) {
             throw new BusinessException("没有待发布的成绩");
         }
-        for (Grade g : grades) {
-            g.setStatus(GradeStatus.PUBLISHED);
-            g.setPublishedAt(LocalDateTime.now());
+        for (Enrollment e : drafts) {
+            e.setStatus(GradeStatus.PUBLISHED);
+            e.setPublishedAt(LocalDateTime.now());
         }
-        gradeRepository.saveAll(grades);
+        enrollmentRepository.saveAll(drafts);
     }
 
     @Transactional
     public void withdraw(Long courseId) {
-        List<Grade> grades = gradeRepository.findByCourseIdAndStatus(courseId, GradeStatus.PUBLISHED);
-        if (grades.isEmpty()) {
+        List<Enrollment> published = enrollmentRepository.findByCourseIdAndStatus(courseId, GradeStatus.PUBLISHED);
+        if (published.isEmpty()) {
             throw new BusinessException("没有可撤回的成绩");
         }
-        for (Grade g : grades) {
-            g.setStatus(GradeStatus.DRAFT);
-            g.setPublishedAt(null);
+        for (Enrollment e : published) {
+            e.setStatus(GradeStatus.DRAFT);
+            e.setPublishedAt(null);
         }
-        gradeRepository.saveAll(grades);
+        enrollmentRepository.saveAll(published);
     }
 
     public List<GradeVO> getStudentGrades(Long studentId) {
-        List<Grade> grades = gradeRepository.findByStudentId(studentId);
-        return grades.stream().map(this::toVO).toList();
+        List<Enrollment> enrollments = enrollmentRepository.findByStudentId(studentId);
+        return enrollments.stream()
+                .filter(e -> e.getStatus() != null)
+                .map(this::toVO)
+                .toList();
     }
 
     public List<GradeVO> getCourseGrades(Long courseId) {
         List<Enrollment> enrollments = enrollmentRepository.findByCourseId(courseId);
-        if (enrollments.isEmpty()) {
-            return List.of();
-        }
-
-        Map<Long, Grade> gradeMap = gradeRepository.findByCourseId(courseId)
-                .stream()
-                .collect(Collectors.toMap(Grade::getStudentId, g -> g, (a, b) -> a));
-
         Course course = courseRepository.findById(courseId).orElse(null);
 
         return enrollments.stream()
-                .map(enrollment -> {
-                    Grade grade = gradeMap.get(enrollment.getStudentId());
-                    return grade != null ? toVO(grade) : toEmptyVO(enrollment, course);
-                })
+                .map(e -> e.getStatus() != null ? toVO(e) : toEmptyVO(e, course))
                 .toList();
     }
 
-    private GradeVO toEmptyVO(Enrollment enrollment, Course course) {
-        GradeVO vo = new GradeVO();
-        vo.setStudentId(enrollment.getStudentId());
-        vo.setCourseId(enrollment.getCourseId());
-        User student = userRepository.findById(enrollment.getStudentId()).orElse(null);
-        if (student != null) {
-            vo.setStudentName(student.getName());
-        }
-        if (course != null) {
-            vo.setCourseName(course.getName());
-            vo.setCredit(course.getCredit());
-        }
-        return vo;
-    }
-
     public float calculateGPA(Long studentId, String semester) {
-        List<Grade> grades = gradeRepository.findByStudentIdAndSemester(studentId, semester);
-        if (grades.isEmpty()) return 0f;
+        List<Enrollment> enrollments = enrollmentRepository.findByStudentIdAndSemester(studentId, semester);
+        if (enrollments.isEmpty()) return 0f;
 
         float totalPoints = 0;
         float totalCredits = 0;
-        for (Grade g : grades) {
-            if (g.getStatus() == GradeStatus.PUBLISHED && g.getGpaPoint() != null) {
-                Course course = courseRepository.findById(g.getCourseId()).orElse(null);
+        for (Enrollment e : enrollments) {
+            if (e.getStatus() == GradeStatus.PUBLISHED && e.getGpaPoint() != null) {
+                Course course = courseRepository.findById(e.getCourseId()).orElse(null);
                 if (course != null) {
-                    totalPoints += g.getGpaPoint() * course.getCredit();
+                    totalPoints += e.getGpaPoint() * course.getCredit();
                     totalCredits += course.getCredit();
                 }
             }
@@ -137,19 +105,34 @@ public class GradeService {
         return totalCredits > 0 ? totalPoints / totalCredits : 0f;
     }
 
-    private GradeVO toVO(Grade grade) {
+    private GradeVO toVO(Enrollment e) {
         GradeVO vo = new GradeVO();
-        vo.setId(grade.getId());
-        vo.setStudentId(grade.getStudentId());
-        vo.setCourseId(grade.getCourseId());
-        vo.setScore(grade.getScore());
-        vo.setGpaPoint(grade.getGpaPoint());
-        vo.setStatus(grade.getStatus().name());
+        vo.setId(e.getId());
+        vo.setStudentId(e.getStudentId());
+        vo.setCourseId(e.getCourseId());
+        vo.setScore(e.getScore());
+        vo.setGpaPoint(e.getGpaPoint());
+        vo.setStatus(e.getStatus().name());
 
-        User student = userRepository.findById(grade.getStudentId()).orElse(null);
+        User student = userRepository.findById(e.getStudentId()).orElse(null);
         if (student != null) vo.setStudentName(student.getName());
 
-        Course course = courseRepository.findById(grade.getCourseId()).orElse(null);
+        Course course = courseRepository.findById(e.getCourseId()).orElse(null);
+        if (course != null) {
+            vo.setCourseName(course.getName());
+            vo.setCredit(course.getCredit());
+        }
+        return vo;
+    }
+
+    private GradeVO toEmptyVO(Enrollment e, Course course) {
+        GradeVO vo = new GradeVO();
+        vo.setStudentId(e.getStudentId());
+        vo.setCourseId(e.getCourseId());
+        User student = userRepository.findById(e.getStudentId()).orElse(null);
+        if (student != null) {
+            vo.setStudentName(student.getName());
+        }
         if (course != null) {
             vo.setCourseName(course.getName());
             vo.setCredit(course.getCredit());
