@@ -697,8 +697,8 @@ table tr:hover td {
 
 .schedule-grid > div {
     background: white;
-    padding: 16px 12px;
-    min-height: 80px;
+    padding: 10px 8px;
+    min-height: 100px;
     font-size: 13px;
 }
 
@@ -724,22 +724,54 @@ table tr:hover td {
 }
 
 .schedule-item {
-    background: var(--pink-lighter) !important;
     border-radius: var(--radius-sm);
     display: flex;
     flex-direction: column;
     justify-content: center;
 }
 
+.schedule-item.day-odd {
+    filter: brightness(1.07);
+}
+
+.schedule-item.slot-0,
+.schedule-item.slot-2 {
+    background: #FFE8EE !important;
+}
+.schedule-item.slot-0 .s-course,
+.schedule-item.slot-2 .s-course { color: #D4707E; }
+.schedule-item.slot-0 .s-week,
+.schedule-item.slot-0 .s-location,
+.schedule-item.slot-2 .s-week,
+.schedule-item.slot-2 .s-location { color: #B08090; }
+
+.schedule-item.slot-1,
+.schedule-item.slot-3 {
+    background: #FFF2ED !important;
+}
+.schedule-item.slot-1 .s-course,
+.schedule-item.slot-3 .s-course { color: #C98870; }
+.schedule-item.slot-1 .s-week,
+.schedule-item.slot-1 .s-location,
+.schedule-item.slot-3 .s-week,
+.schedule-item.slot-3 .s-location { color: #B09588; }
+
 .schedule-item .s-course {
     font-weight: 600;
     font-size: 12px;
-    color: var(--pink-deep);
 }
 
 .schedule-item .s-time {
     font-size: 11px;
     color: var(--text-lighter);
+}
+
+.schedule-item .s-week {
+    font-size: 11px;
+}
+
+.schedule-item .s-location {
+    font-size: 11px;
 }
 
 /* ===== HTML-rendered alert ===== */

@@ -7,6 +7,9 @@ public class ScheduleVO {
     private String schedule;
     private String semester;
     private Float credit;
+    private String location;
+    private Integer startWeek;
+    private Integer endWeek;
 
     public Long getCourseId() { return courseId; }
     public void setCourseId(Long courseId) { this.courseId = courseId; }
@@ -20,4 +23,10 @@ public class ScheduleVO {
     public void setSemester(String semester) { this.semester = semester; }
     public Float getCredit() { return credit; }
     public void setCredit(Float credit) { this.credit = credit; }
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
+    public Integer getStartWeek() { return startWeek; }
+    public void setStartWeek(Integer startWeek) { this.startWeek = startWeek; }
+    public Integer getEndWeek() { return endWeek; }
+    public void setEndWeek(Integer endWeek) { this.endWeek = endWeek; }
 }

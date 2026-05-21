@@ -46,7 +46,8 @@ public class CourseService {
         course.setSemester(request.getSemester());
         course.setCredit(request.getCredit());
         course = courseRepository.save(course);
-        saveSlots(course.getId(), request.getSchedules(), request.getLocation());
+        saveSlots(course.getId(), request.getSchedules(), request.getLocation(),
+                   request.getStartWeek(), request.getEndWeek());
         return course;
     }
 
@@ -62,11 +63,13 @@ public class CourseService {
         course.setTeacherId(request.getTeacherId());
         course = courseRepository.save(course);
         slotRepository.deleteByCourseId(courseId);
-        saveSlots(course.getId(), request.getSchedules(), request.getLocation());
+        saveSlots(course.getId(), request.getSchedules(), request.getLocation(),
+                   request.getStartWeek(), request.getEndWeek());
         return course;
     }
 
-    private void saveSlots(Long courseId, List<String> schedules, String location) {
+    private void saveSlots(Long courseId, List<String> schedules, String location,
+                           Integer startWeek, Integer endWeek) {
         if (schedules != null && !schedules.isEmpty()) {
             for (String schedule : schedules) {
                 if (schedule != null && !schedule.isBlank()) {
@@ -74,6 +77,8 @@ public class CourseService {
                     slot.setCourseId(courseId);
                     slot.setSchedule(schedule);
                     slot.setLocation(location != null && !location.isBlank() ? location : null);
+                    slot.setStartWeek(startWeek != null ? startWeek : 1);
+                    slot.setEndWeek(endWeek != null ? endWeek : 16);
                     slotRepository.save(slot);
                 }
             }
@@ -143,7 +148,6 @@ public class CourseService {
         List<CourseSlot> newSlots = slotRepository.findByCourseId(newCourse.getId());
         if (newSlots.isEmpty()) return;
 
-        Set<String> newSlotSchedules = newSlots.stream().map(CourseSlot::getSchedule).collect(Collectors.toSet());
         List<Enrollment> enrollments = enrollmentRepository.findByStudentId(studentId);
         if (enrollments.isEmpty()) return;
 
@@ -156,11 +160,22 @@ public class CourseService {
             List<CourseSlot> enrolledSlots = slotsByCourse.get(enr.getCourseId());
             if (enrolledSlots == null) continue;
             for (CourseSlot es : enrolledSlots) {
-                if (newSlotSchedules.contains(es.getSchedule())) {
-                    throw new BusinessException("选不了了哦 ⏰");
+                for (CourseSlot ns : newSlots) {
+                    if (schedulesOverlap(es, ns)) {
+                        throw new BusinessException("选不了了哦 ⏰");
+                    }
                 }
             }
         }
+    }
+
+    private boolean schedulesOverlap(CourseSlot a, CourseSlot b) {
+        if (!a.getSchedule().equals(b.getSchedule())) return false;
+        int aStart = a.getStartWeek() != null ? a.getStartWeek() : 1;
+        int aEnd = a.getEndWeek() != null ? a.getEndWeek() : 16;
+        int bStart = b.getStartWeek() != null ? b.getStartWeek() : 1;
+        int bEnd = b.getEndWeek() != null ? b.getEndWeek() : 16;
+        return Math.max(aStart, bStart) <= Math.min(aEnd, bEnd);
     }
 
     public List<ScheduleVO> getSchedule(Long studentId) {
@@ -188,21 +203,26 @@ public class CourseService {
                 result.add(buildScheduleVO(course, teacherName, null));
             } else {
                 for (CourseSlot slot : courseSlots) {
-                    result.add(buildScheduleVO(course, teacherName, slot.getSchedule()));
+                    result.add(buildScheduleVO(course, teacherName, slot));
                 }
             }
         }
         return result;
     }
 
-    private ScheduleVO buildScheduleVO(Course course, String teacherName, String schedule) {
+    private ScheduleVO buildScheduleVO(Course course, String teacherName, CourseSlot slot) {
         ScheduleVO vo = new ScheduleVO();
         vo.setCourseId(course.getId());
         vo.setCourseName(course.getName());
         vo.setTeacherName(teacherName);
         vo.setSemester(course.getSemester());
         vo.setCredit(course.getCredit());
-        vo.setSchedule(schedule);
+        if (slot != null) {
+            vo.setSchedule(slot.getSchedule());
+            vo.setLocation(slot.getLocation());
+            vo.setStartWeek(slot.getStartWeek() != null ? slot.getStartWeek() : 1);
+            vo.setEndWeek(slot.getEndWeek() != null ? slot.getEndWeek() : 16);
+        }
         return vo;
     }
 
@@ -257,9 +277,13 @@ public class CourseService {
             if (slots.isEmpty()) {
                 vo.setSchedule(null);
                 vo.setLocation(null);
+                vo.setStartWeek(1);
+                vo.setEndWeek(16);
             } else {
                 StringBuilder sbSchedule = new StringBuilder();
                 StringBuilder sbLocation = new StringBuilder();
+                int minStart = Integer.MAX_VALUE;
+                int maxEnd = Integer.MIN_VALUE;
                 for (int i = 0; i < slots.size(); i++) {
                     if (i > 0) {
                         sbSchedule.append("；");
@@ -267,9 +291,15 @@ public class CourseService {
                     }
                     sbSchedule.append(slots.get(i).getSchedule());
                     sbLocation.append(slots.get(i).getLocation() != null ? slots.get(i).getLocation() : "");
+                    int sw = slots.get(i).getStartWeek() != null ? slots.get(i).getStartWeek() : 1;
+                    int ew = slots.get(i).getEndWeek() != null ? slots.get(i).getEndWeek() : 16;
+                    if (sw < minStart) minStart = sw;
+                    if (ew > maxEnd) maxEnd = ew;
                 }
                 vo.setSchedule(sbSchedule.toString());
                 vo.setLocation(sbLocation.toString());
+                vo.setStartWeek(minStart);
+                vo.setEndWeek(maxEnd);
             }
             vo.setEnrolled(enrolledCourseIds.contains(course.getId()));
             return vo;

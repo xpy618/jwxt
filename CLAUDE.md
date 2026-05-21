@@ -30,18 +30,18 @@ taskkill //F //IM java.exe
 
 数据库 `jwxt` 已创建，JPA `ddl-auto: update` 自动建表。启动后 DataInitializer 自动填充种子数据（仅当 user 表为空时）。
 
-种子账号（密码均为 `123456`）：`admin`(管理员)、`zengzr`/`liutk`/`sunqt`/`zongliang`/`zengdt`/`tangyong`/`zhanyz`(教师)、`student`/`student2`(学生)。
+种子账号（密码均为 `123456`）：`admin`(管理员)、`zengzr`/`liutk`/`sunqt`/`zongliang`/`zengdt`/`tangyong`/`zhanyz`(教师)、`wangzhaohan`/`hechao`/`zangyuexiang`/`gaoheng`(学生)。
 
-种子课程（DataInitializer 自动创建，含多时段）：
-| 课程 | 教师 | 学分 | 时段数 |
-|------|------|------|--------|
-| 机器学习 | 曾增日 | 3.0 | 4 |
-| 数据库原理与应用 | 曾德天 | 3.0 | 2 |
-| 操作系统原理与Linux应用 | 曾德天 | 3.5 | 2 |
-| 计算机网络 | 宗亮 | 3.0 | 3 |
-| 毛泽东思想和中国特色社会主义理论体系概论 | 孙其庭 | 3.0 | 1 |
-| 人工智能数学基础 | 宗亮 | 3.0 | 1 |
-| 大学体育(四)(羽毛球3-56) | 唐勇 | 1.0 | 1 |
+种子课程（DataInitializer 自动创建，含多时段和周次范围）：
+| 课程 | 教师 | 学分 | 时段 | 周次 |
+|------|------|------|------|------|
+| 机器学习 | 曾增日 | 3.0 | 周一/周三 10:20-12:00、周二 08:20-10:00、周五 10:20-12:00 | 2-9/7-10/2-9/7-10 |
+| 数据库原理与应用 | 曾德天 | 3.0 | 周二 10:20-12:00、周四 10:20-12:00 | 2-17/9-16 |
+| 操作系统原理与Linux应用 | 曾德天 | 3.5 | 周三 08:20-10:00、周四 08:20-10:00 | 2-11/5-10 |
+| 计算机网络 | 宗亮 | 3.0 | 周三 16:30-18:10、周四 14:30-16:10、周五 14:30-16:10 | 2-11/3-10/2-11 |
+| 毛泽东思想和中国特色社会主义理论体系概论 | 孙其庭 | 3.0 | 周一 14:30-16:10 | 2-17 |
+| 人工智能数学基础 | 宗亮 | 3.0 | 周一 16:30-18:10 | 2-17 |
+| 大学体育(四)(羽毛球3-56) | 唐勇 | 1.0 | 周三 14:30-16:10 | 2-17 |
 
 清空数据库重新初始化：`mysql -u root -e "DROP DATABASE IF EXISTS jwxt; CREATE DATABASE jwxt;"`
 
@@ -136,12 +136,12 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 |----|------|------|
 | `LoginRequest` | 入参 | 登录表单（username, password） |
 | `RegisterRequest` | 入参 | 注册表单 |
-| `CourseRequest` | 入参 | 课程创建/编辑（含 schedules 列表, location 字符串, 可选 teacherId） |
+| `CourseRequest` | 入参 | 课程创建/编辑（含 schedules 列表, location 字符串, startWeek/endWeek, 可选 teacherId） |
 | `GradeRequest` | 入参 | 成绩录入/编辑（studentId, courseId, score） |
 | `LoginResponse` | 返回值 | 登录成功返回（token, username, role） |
-| `CourseVO` | 返回值 | 课程视图（含 teacherName, enrolledCount, enrolled, 拼接后的 schedule/location） |
+| `CourseVO` | 返回值 | 课程视图（含 teacherName, enrolledCount, enrolled, 拼接后的 schedule/location, startWeek/endWeek） |
 | `GradeVO` | 返回值 | 成绩视图（含 studentName, courseName） |
-| `ScheduleVO` | 返回值 | 课表项（每个 CourseSlot 一条，含 courseName, teacherName, schedule） |
+| `ScheduleVO` | 返回值 | 课表项（每个 CourseSlot 一条，含 courseName, teacherName, schedule, location, startWeek/endWeek） |
 
 `Result<T>` 统一包装：`{code: 200, message: "ok", data: T}`。异常由 `GlobalExceptionHandler` 处理，`BusinessException` 用于业务校验失败。
 
@@ -150,7 +150,7 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 ### 选课
 - **选课上限**: `enrollmentRepository.countByCourseId()` >= `course.maxStudents` 时拒绝
 - **学分上限**: 已选课程总学分 + 新课程学分 <= 30，超出拒绝（`EnrollmentRepository.sumCreditByStudentId()`）
-- **时间冲突**: 同一学生选多门课时，遍历两门课的所有 CourseSlot，若任一 schedule 字符串相同则拒绝
+- **时间冲突**: 同一学生选多门课时，遍历两门课的所有 CourseSlot，`schedulesOverlap()` 比对 schedule 字符串是否相同且周次有交集，同时满足则拒绝
 
 ### 成绩
 - **流程**: 教师保存 → DRAFT（草稿），教师发布 → PUBLISHED（已发布，学生可见），教师撤回 → DRAFT。DRAFT ⇄ PUBLISHED 双向可逆，已发布成绩不可直接修改（需先撤回）
@@ -171,7 +171,8 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 Course (1) ──── (N) CourseSlot
 ```
 
-- **CourseSlot 字段**: `id`, `courseId`, `schedule`, `location`
+- **CourseSlot 字段**: `id`, `courseId`, `schedule`, `location`, `startWeek`, `endWeek`
+- **周次范围**: `startWeek`/`endWeek` 为 Integer，默认 1/16（全学期），支持同一课程不同时段有不同的周次范围
 - **Repository**: `CourseSlotRepository` 提供 `findByCourseId`、`findByCourseIdIn`、`deleteByCourseId`
 - **VO 层**: `CourseVO.schedule` 和 `CourseVO.location` 以中文分号（`；`）拼接多个时段的值，前端直接展示
 - **课表 API**: `getSchedule()` 每个 slot 单独返回一条 `ScheduleVO`，课表网格中一门课可占据多个格子
@@ -180,6 +181,8 @@ Course (1) ──── (N) CourseSlot
 ## schedule 字段格式
 
 格式为 `周X HH:MM-HH:MM`，例如 `周一 10:20-12:00`、`周三 14:30-16:10`。
+
+每个 `CourseSlot` 附带 `startWeek`/`endWeek` 字段（1-16），课表页面按周过滤：仅显示 `slot.startWeek <= 选中周 <= slot.endWeek` 的时段。选课冲突检测同时考虑 schedule 字符串匹配和周次交集。
 
 前端 `schedule.html` 按"周一至周五"列 × 四个时段行解析到课表网格：
 
@@ -192,7 +195,7 @@ Course (1) ──── (N) CourseSlot
 
 `parseSchedule()` 函数提取 schedule 字符串的"周X"和开始时间进行网格定位。修改格式需同步改前端。
 
-**课程表单**使用复选框网格选择时段（`courses.html` 中的 `.schedule-picker`），教师勾选 5 天×4 大节的组合，前端收集为 `schedules` 数组提交，后端遍历创建多条 `CourseSlot` 记录。编辑时已有 schedule 字符串按 `；` 分割回填勾选状态。
+**课程表单**使用复选框网格选择时段（`courses.html` 中的 `.schedule-picker`），教师勾选 5 天×4 大节的组合，同时通过下拉框选择周次范围（1-16 周），前端收集为 `schedules` 数组 + `startWeek`/`endWeek` 提交，后端遍历创建多条 `CourseSlot` 记录。编辑时已有 schedule 字符串按 `；` 分割回填勾选状态，周次范围从已有 slot 读取。
 
 ## 前端静态资源
 
@@ -201,7 +204,7 @@ Course (1) ──── (N) CourseSlot
 - **CSS**: `static/css/style.css`，樱花粉 (#FFB7C5) 配色方案，CSS 变量统一管理
 - **页面编辑按钮**: 使用 `data-course` 属性 + `JSON.stringify` 传值，避免内联 onclick 参数蔓延和 XSS 风险
 
-**当前版本 v4.1** — Grade 实体已合并到 Enrollment，共 4 个实体（User/Course/CourseSlot/Enrollment）。Enrollment 承载成绩字段（score/gpaPoint/status/publishedAt），status 为 null 表示未录入、DRAFT 为草稿、PUBLISHED 为已发布。Course.teacherId 可空，支持先建课后分配教师。选课增加 30 学分上限校验。
+**当前版本 v5.0** — 增加周次范围（startWeek/endWeek）支持课程分周上课，冲突检测改为同时比对时段字符串和周次交集，课表按选中周过滤显示。Grade 实体已合并到 Enrollment，共 4 个实体（User/Course/CourseSlot/Enrollment）。Enrollment 承载成绩字段（score/gpaPoint/status/publishedAt），status 为 null 表示未录入、DRAFT 为草稿、PUBLISHED 为已发布。Course.teacherId 可空，支持先建课后分配教师。选课增加 30 学分上限校验。
 
 参考 E-R 图：`reference-er/`（OpenTextBC 大学注册模型，5 实体经典设计）。
 

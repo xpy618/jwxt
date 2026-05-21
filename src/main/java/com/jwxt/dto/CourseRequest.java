@@ -25,6 +25,10 @@ public class CourseRequest {
 
     private String location;
 
+    private Integer startWeek;
+
+    private Integer endWeek;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getDescription() { return description; }
@@ -41,4 +45,8 @@ public class CourseRequest {
     public void setSchedules(List<String> schedules) { this.schedules = schedules; }
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
+    public Integer getStartWeek() { return startWeek; }
+    public void setStartWeek(Integer startWeek) { this.startWeek = startWeek; }
+    public Integer getEndWeek() { return endWeek; }
+    public void setEndWeek(Integer endWeek) { this.endWeek = endWeek; }
 }

@@ -13,6 +13,8 @@ public class CourseVO {
     private String schedule;
     private String location;
     private boolean enrolled;
+    private Integer startWeek;
+    private Integer endWeek;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -38,4 +40,8 @@ public class CourseVO {
     public void setLocation(String location) { this.location = location; }
     public boolean isEnrolled() { return enrolled; }
     public void setEnrolled(boolean enrolled) { this.enrolled = enrolled; }
+    public Integer getStartWeek() { return startWeek; }
+    public void setStartWeek(Integer startWeek) { this.startWeek = startWeek; }
+    public Integer getEndWeek() { return endWeek; }
+    public void setEndWeek(Integer endWeek) { this.endWeek = endWeek; }
 }

@@ -109,6 +109,16 @@
                 </div>
             </div>
             <div class="form-group">
+                <label>周次范围</label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <select id="course-start-week" style="flex:1; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+                    </select>
+                    <span style="color:var(--text-lighter);">—</span>
+                    <select id="course-end-week" style="flex:1; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
                 <label>上课地点</label>
                 <input type="text" id="course-location" placeholder="例如 致远-107">
             </div>
@@ -154,6 +164,7 @@ async function loadCourses() {
             html += '<span>📅 ' + esc(c.semester || '') + '</span>';
             if (c.schedule) html += '<span>🕐 ' + esc(c.schedule).replace(/；/g, '<br>🕐 ') + '</span>';
             if (c.location) html += '<span>📍 ' + esc(c.location).replace(/；/g, '<br>📍 ') + '</span>';
+            if (c.startWeek && c.endWeek) html += '<span>📆 第' + c.startWeek + '-' + c.endWeek + '周</span>';
             html += '</div>';
             if (c.description) html += '<div class="course-desc">' + esc(c.description) + '</div>';
             html += '<div class="course-footer">';
@@ -221,6 +232,16 @@ async function unenroll(courseId) {
     }
 }
 
+function initWeekSelects() {
+    var start = document.getElementById('course-start-week');
+    var end = document.getElementById('course-end-week');
+    if (start.options.length > 0) return;
+    for (var i = 1; i <= 16; i++) {
+        start.innerHTML += '<option value="' + i + '">第' + i + '周</option>';
+        end.innerHTML += '<option value="' + i + '">第' + i + '周</option>';
+    }
+}
+
 function openCourseModal() {
     document.getElementById('modal-title').textContent = '新增课程';
     document.getElementById('course-id').value = '';
@@ -231,6 +252,9 @@ function openCourseModal() {
     document.getElementById('course-semester').value = '2025-2026-2';
     document.getElementById('course-location').value = '';
     document.querySelectorAll('input[name="schedules"]').forEach(function(cb) { cb.checked = false; });
+    initWeekSelects();
+    document.getElementById('course-start-week').value = '1';
+    document.getElementById('course-end-week').value = '16';
     var select = document.getElementById('course-teacher');
     select.innerHTML = '<option value="">（默认：本人）</option>';
     fetch('/api/courses/teachers', { headers: authHeader() }).then(function(resp) { return resp.json(); }).then(function(data) {
@@ -256,6 +280,9 @@ function editCourseFromButton(btn) {
     document.getElementById('course-semester').value = c.semester;
     document.getElementById('course-location').value = c.location || '';
     document.getElementById('course-teacher').value = c.teacherId || '';
+    initWeekSelects();
+    document.getElementById('course-start-week').value = c.startWeek || 1;
+    document.getElementById('course-end-week').value = c.endWeek || 16;
     // Parse existing schedules and check matching checkboxes
     var existingSchedules = c.schedule ? c.schedule.split('；') : [];
     document.querySelectorAll('input[name="schedules"]').forEach(function(cb) {
@@ -283,6 +310,8 @@ async function saveCourse(e) {
         semester: document.getElementById('course-semester').value,
         schedules: schedules,
         location: document.getElementById('course-location').value,
+        startWeek: parseInt(document.getElementById('course-start-week').value),
+        endWeek: parseInt(document.getElementById('course-end-week').value),
         teacherId: document.getElementById('course-teacher').value ? parseInt(document.getElementById('course-teacher').value) : null
     };
     var method = id ? 'PUT' : 'POST';
