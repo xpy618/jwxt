@@ -1,6 +1,7 @@
 package com.jwxt.controller;
 
 import com.jwxt.common.Result;
+import com.jwxt.dto.AcademicProgressVO;
 import com.jwxt.dto.AdminDashboardVO;
 import com.jwxt.dto.StudentDashboardVO;
 import com.jwxt.service.DashboardService;
@@ -31,5 +32,12 @@ public class DashboardController {
     @PreAuthorize("hasRole('ADMIN')")
     public Result<AdminDashboardVO> adminDashboard() {
         return Result.success(dashboardService.getAdminDashboard());
+    }
+
+    @GetMapping("/academic-progress")
+    @PreAuthorize("hasRole('STUDENT')")
+    public Result<AcademicProgressVO> academicProgress(Authentication auth) {
+        Long studentId = (Long) auth.getCredentials();
+        return Result.success(dashboardService.getAcademicProgress(studentId));
     }
 }

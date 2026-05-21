@@ -262,4 +262,54 @@ public class DashboardService {
         int week = (int) (daysBetween / 7) + 1;
         return Math.max(1, Math.min(week, 16));
     }
+
+    public AcademicProgressVO getAcademicProgress(Long studentId) {
+        Map<CourseCategory, Double> requiredMap = Map.of(
+                CourseCategory.REQUIRED, 12.0,
+                CourseCategory.ELECTIVE, 6.0,
+                CourseCategory.PE, 1.0
+        );
+
+        List<Enrollment> enrollments = enrollmentRepository.findByStudentId(studentId);
+        Map<Long, Course> courseMap = new HashMap<>();
+        if (!enrollments.isEmpty()) {
+            List<Long> courseIds = enrollments.stream().map(Enrollment::getCourseId).toList();
+            courseMap = courseRepository.findAllById(courseIds).stream()
+                    .collect(Collectors.toMap(Course::getId, c -> c));
+        }
+
+        AcademicProgressVO vo = new AcademicProgressVO();
+        double totalRequired = requiredMap.values().stream().mapToDouble(Double::doubleValue).sum();
+        vo.setTotalRequiredCredits(totalRequired);
+
+        List<AcademicProgressItemVO> items = new ArrayList<>();
+        double totalCompleted = 0;
+
+        for (CourseCategory cat : CourseCategory.values()) {
+            Double req = requiredMap.getOrDefault(cat, 0.0);
+            AcademicProgressItemVO item = new AcademicProgressItemVO();
+            item.setCategory(cat.name());
+            item.setCategoryName(cat == CourseCategory.REQUIRED ? "必修" : cat == CourseCategory.ELECTIVE ? "选修" : "体育");
+            item.setRequiredCredits(req);
+
+            double completed = 0;
+            for (Enrollment e : enrollments) {
+                if (e.getStatus() != GradeStatus.PUBLISHED) continue;
+                if (e.getScore() != null && e.getScore() < 60) continue;
+                Course c = courseMap.get(e.getCourseId());
+                if (c != null && c.getCategory() == cat) {
+                    completed += c.getCredit();
+                }
+            }
+            item.setCompletedCredits(completed);
+            item.setProgressPercent(req > 0 ? Math.min(100.0, Math.round(completed / req * 1000.0) / 10.0) : 100.0);
+            items.add(item);
+            totalCompleted += completed;
+        }
+
+        vo.setItems(items);
+        vo.setTotalCompletedCredits(totalCompleted);
+        vo.setTotalProgressPercent(totalRequired > 0 ? Math.min(100.0, Math.round(totalCompleted / totalRequired * 1000.0) / 10.0) : 100.0);
+        return vo;
+    }
 }

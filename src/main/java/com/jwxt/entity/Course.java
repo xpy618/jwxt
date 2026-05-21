@@ -28,6 +28,10 @@ public class Course {
     @Column(nullable = false)
     private Float credit = 1.0f;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private CourseCategory category;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -50,6 +54,8 @@ public class Course {
     public void setSemester(String semester) { this.semester = semester; }
     public Float getCredit() { return credit; }
     public void setCredit(Float credit) { this.credit = credit; }
+    public CourseCategory getCategory() { return category; }
+    public void setCategory(CourseCategory category) { this.category = category; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     private void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

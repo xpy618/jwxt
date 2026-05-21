@@ -97,7 +97,7 @@ mvn spring-boot:run -o -Dmaven.test.skip=true
 ```
 
 - **页面路由**: `PageController`（`@Controller`）返回 Thymeleaf 模板，传入 `username`/`role` 到 Model
-- **页面清单**: `/login` → `login.html`, `/register` → `register.html`, `/index` → `index.html`, `/courses` → `courses.html`, `/schedule` → `schedule.html`, `/grades` → `grades.html`, `/admin/users` → `admin/users.html`
+- **页面清单**: `/login` → `login.html`, `/register` → `register.html`, `/index` → `index.html`, `/courses` → `courses.html`, `/schedule` → `schedule.html`, `/grades` → `grades.html`, `/admin/users` → `admin/users.html`, `/admin/dashboard` → `admin/dashboard.html`
 - **API 路由**: `@RestController` 类返回 JSON，统一封装为 `Result<T>`（`{code, message, data}`）
 - **安全配置**: `config/SecurityConfig.java` — CSRF 已禁用，会话策略 STATELESS（无状态 JWT）
 - **角色**: STUDENT / TEACHER / ADMIN（`Role` 枚举），Spring Security 方法级 `@PreAuthorize` + URL 级配置
@@ -139,9 +139,16 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 | `CourseRequest` | 入参 | 课程创建/编辑（含 schedules 列表, location 字符串, startWeek/endWeek, 可选 teacherId） |
 | `GradeRequest` | 入参 | 成绩录入/编辑（studentId, courseId, score） |
 | `LoginResponse` | 返回值 | 登录成功返回（token, username, role） |
-| `CourseVO` | 返回值 | 课程视图（含 teacherName, enrolledCount, enrolled, 拼接后的 schedule/location, startWeek/endWeek） |
+| `CourseVO` | 返回值 | 课程视图（含 teacherName, enrolledCount, enrolled, category, 拼接后的 schedule/location, startWeek/endWeek） |
 | `GradeVO` | 返回值 | 成绩视图（含 studentName, courseName） |
 | `ScheduleVO` | 返回值 | 课表项（每个 CourseSlot 一条，含 courseName, teacherName, schedule, location, startWeek/endWeek） |
+| `EnrollmentPreviewRequest` | 入参 | 预选篮预览请求（courseIds 列表） |
+| `EnrollmentPreviewVO` | 返回值 | 预选篮预览结果（totalCredits, selectedCredits, valid, warnings, conflictCourseIds） |
+| `StudentDashboardVO` | 返回值 | 学生首页仪表盘（selectedCredits, todaySchedules, latestGrades, tips） |
+| `AdminDashboardVO` | 返回值 | 管理员看板（用户/课程/选课/成绩统计 + popularCourses + fullCourses） |
+| `CourseSummaryVO` | 返回值 | 课程摘要（courseName, teacherName, enrolledCount, maxStudents） |
+| `AcademicProgressVO` | 返回值 | 学业进度总览（totalRequiredCredits, totalCompletedCredits, totalProgressPercent, items） |
+| `AcademicProgressItemVO` | 返回值 | 单类别进度（category, categoryName, requiredCredits, completedCredits, progressPercent） |
 
 `Result<T>` 统一包装：`{code: 200, message: "ok", data: T}`。异常由 `GlobalExceptionHandler` 处理，`BusinessException` 用于业务校验失败。
 
@@ -204,7 +211,7 @@ Course (1) ──── (N) CourseSlot
 - **CSS**: `static/css/style.css`，樱花粉 (#FFB7C5) 配色方案，CSS 变量统一管理
 - **页面编辑按钮**: 使用 `data-course` 属性 + `JSON.stringify` 传值，避免内联 onclick 参数蔓延和 XSS 风险
 
-**当前版本 v5.1** — 新增学生预选篮（前端预览方案检测冲突/学分/容量）、学生首页学业状态面板（今日课程/已选学分/最新成绩/提醒）、管理员运营看板（用户/课程/选课/成绩统计 + 热门课程TOP5 + 满员课程列表）。新增 DashboardController/DashboardService 聚合仪表盘数据，新增 AdminDashboardVO/CourseSummaryVO/StudentDashboardVO/EnrollmentPreviewRequest/EnrollmentPreviewVO 等 DTO。
+**当前版本 v5.2** — 新增轻量培养方案与学业进度：Course 实体增加 CourseCategory（REQUIRED/ELECTIVE/PE），课程表单支持类别选择，学生首页展示总进度条和必修/选修/体育三条分类进度条（仅统计已发布且>=60分的成绩）。种子课程除羽毛球(体育)外均为必修。学分要求：必修12 + 选修6 + 体育1 = 总计19学分（Service 常量）。
 
 参考 E-R 图：`reference-er/`（OpenTextBC 大学注册模型，5 实体经典设计）。
 

@@ -29,6 +29,8 @@ public class CourseRequest {
 
     private Integer endWeek;
 
+    private String category;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getDescription() { return description; }
@@ -49,4 +51,6 @@ public class CourseRequest {
     public void setStartWeek(Integer startWeek) { this.startWeek = startWeek; }
     public Integer getEndWeek() { return endWeek; }
     public void setEndWeek(Integer endWeek) { this.endWeek = endWeek; }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 }

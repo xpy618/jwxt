@@ -172,6 +172,14 @@
                 <input type="text" id="course-semester" placeholder="例如 2025-2026-2" value="2025-2026-2" required>
             </div>
             <div class="form-group">
+                <label>课程类别</label>
+                <select id="course-category" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
+                    <option value="ELECTIVE">选修</option>
+                    <option value="REQUIRED">必修</option>
+                    <option value="PE">体育</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label>任课教师</label>
                 <select id="course-teacher" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px;">
                     <option value="">（默认：本人）</option>
@@ -540,6 +548,7 @@ function openCourseModal() {
     document.getElementById('course-credit').value = '';
     document.getElementById('course-max').value = '';
     document.getElementById('course-semester').value = '2025-2026-2';
+    document.getElementById('course-category').value = 'ELECTIVE';
     document.getElementById('course-location').value = '';
     document.querySelectorAll('input[name="schedules"]').forEach(function(cb) { cb.checked = false; });
     initWeekSelects();
@@ -569,6 +578,7 @@ function editCourseFromButton(btn) {
     document.getElementById('course-max').value = c.maxStudents;
     document.getElementById('course-semester').value = c.semester;
     document.getElementById('course-location').value = c.location || '';
+    document.getElementById('course-category').value = c.category || 'ELECTIVE';
     document.getElementById('course-teacher').value = c.teacherId || '';
     initWeekSelects();
     document.getElementById('course-start-week').value = c.startWeek || 1;
@@ -601,7 +611,8 @@ async function saveCourse(e) {
         location: document.getElementById('course-location').value,
         startWeek: parseInt(document.getElementById('course-start-week').value),
         endWeek: parseInt(document.getElementById('course-end-week').value),
-        teacherId: document.getElementById('course-teacher').value ? parseInt(document.getElementById('course-teacher').value) : null
+        teacherId: document.getElementById('course-teacher').value ? parseInt(document.getElementById('course-teacher').value) : null,
+        category: document.getElementById('course-category').value
     };
     var method = id ? 'PUT' : 'POST';
     var url = id ? '/api/courses/' + id : '/api/courses';

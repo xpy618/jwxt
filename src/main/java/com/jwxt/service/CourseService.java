@@ -6,6 +6,7 @@ import com.jwxt.dto.CourseVO;
 import com.jwxt.dto.EnrollmentPreviewVO;
 import com.jwxt.dto.ScheduleVO;
 import com.jwxt.entity.Course;
+import com.jwxt.entity.CourseCategory;
 import com.jwxt.entity.CourseSlot;
 import com.jwxt.entity.Enrollment;
 import com.jwxt.entity.User;
@@ -46,6 +47,9 @@ public class CourseService {
         course.setMaxStudents(request.getMaxStudents());
         course.setSemester(request.getSemester());
         course.setCredit(request.getCredit());
+        if (request.getCategory() != null) {
+            course.setCategory(CourseCategory.valueOf(request.getCategory()));
+        }
         course = courseRepository.save(course);
         saveSlots(course.getId(), request.getSchedules(), request.getLocation(),
                    request.getStartWeek(), request.getEndWeek());
@@ -62,6 +66,9 @@ public class CourseService {
         course.setSemester(request.getSemester());
         course.setCredit(request.getCredit());
         course.setTeacherId(request.getTeacherId());
+        if (request.getCategory() != null) {
+            course.setCategory(CourseCategory.valueOf(request.getCategory()));
+        }
         course = courseRepository.save(course);
         slotRepository.deleteByCourseId(courseId);
         saveSlots(course.getId(), request.getSchedules(), request.getLocation(),
@@ -383,6 +390,7 @@ public class CourseService {
             vo.setEnrolledCount(countMap.getOrDefault(course.getId(), 0L));
             vo.setSemester(course.getSemester());
             vo.setCredit(course.getCredit());
+            vo.setCategory(course.getCategory() != null ? course.getCategory().name() : null);
             if (slots.isEmpty()) {
                 vo.setSchedule(null);
                 vo.setLocation(null);

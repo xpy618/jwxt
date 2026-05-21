@@ -48,6 +48,20 @@
                 </div>
             </div>
 
+            <div class="card progress-section" id="academic-progress-section">
+                <h4>学业进度</h4>
+                <div class="progress-total">
+                    <div class="progress-label">
+                        <span>总进度</span>
+                        <span id="prog-total-text">-- / -- 学分</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="prog-total-bar" style="width: 0%;"></div>
+                    </div>
+                </div>
+                <div id="prog-items"></div>
+            </div>
+
             <div class="dash-panels">
                 <div class="card dash-panel-main">
                     <h4 style="margin-bottom: 16px; color: var(--pink-deep);">今日课程</h4>
@@ -159,6 +173,34 @@
         })
         .catch(function() {
             document.getElementById('student-dashboard').style.display = 'block';
+        });
+
+    fetch('/api/dashboard/academic-progress', { headers: authHeader() })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.code !== 200 || !res.data) return;
+            var d = res.data;
+            var pct = d.totalProgressPercent || 0;
+            var bar = document.getElementById('prog-total-bar');
+            bar.style.width = pct + '%';
+            if (pct >= 80) bar.classList.add('good');
+            else if (pct < 30) bar.classList.add('warn');
+            document.getElementById('prog-total-text').textContent =
+                (d.totalCompletedCredits || 0) + ' / ' + (d.totalRequiredCredits || 0) + ' 学分';
+
+            var itemsHtml = '';
+            var items = d.items || [];
+            for (var i = 0; i < items.length; i++) {
+                var it = items[i];
+                var ipct = it.progressPercent || 0;
+                var fillClass = ipct >= 80 ? 'good' : (ipct < 30 ? 'warn' : '');
+                itemsHtml += '<div class="progress-item">' +
+                    '<span class="prog-category">' + esc(it.categoryName) + '</span>' +
+                    '<span class="prog-bar-wrap"><span class="prog-fill ' + fillClass + '" style="width:' + ipct + '%;"></span></span>' +
+                    '<span class="prog-text">' + (it.completedCredits || 0) + ' / ' + (it.requiredCredits || 0) + ' 学分</span>' +
+                    '</div>';
+            }
+            document.getElementById('prog-items').innerHTML = itemsHtml;
         });
 })();
 </script>
