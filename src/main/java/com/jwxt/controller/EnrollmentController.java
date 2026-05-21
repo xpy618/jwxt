@@ -1,6 +1,8 @@
 package com.jwxt.controller;
 
 import com.jwxt.common.Result;
+import com.jwxt.dto.EnrollmentPreviewRequest;
+import com.jwxt.dto.EnrollmentPreviewVO;
 import com.jwxt.dto.ScheduleVO;
 import com.jwxt.service.CourseService;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,6 +35,12 @@ public class EnrollmentController {
         Long studentId = (Long) auth.getCredentials();
         courseService.unenroll(studentId, courseId);
         return Result.success();
+    }
+
+    @PostMapping("/preview")
+    public Result<EnrollmentPreviewVO> preview(@RequestBody EnrollmentPreviewRequest request, Authentication auth) {
+        Long studentId = (Long) auth.getCredentials();
+        return Result.success(courseService.previewEnrollments(studentId, request.getCourseIds()));
     }
 
     @GetMapping("/schedule")

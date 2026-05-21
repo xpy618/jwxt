@@ -204,7 +204,7 @@ Course (1) ──── (N) CourseSlot
 - **CSS**: `static/css/style.css`，樱花粉 (#FFB7C5) 配色方案，CSS 变量统一管理
 - **页面编辑按钮**: 使用 `data-course` 属性 + `JSON.stringify` 传值，避免内联 onclick 参数蔓延和 XSS 风险
 
-**当前版本 v5.0** — 增加周次范围（startWeek/endWeek）支持课程分周上课，冲突检测改为同时比对时段字符串和周次交集，课表按选中周过滤显示。Grade 实体已合并到 Enrollment，共 4 个实体（User/Course/CourseSlot/Enrollment）。Enrollment 承载成绩字段（score/gpaPoint/status/publishedAt），status 为 null 表示未录入、DRAFT 为草稿、PUBLISHED 为已发布。Course.teacherId 可空，支持先建课后分配教师。选课增加 30 学分上限校验。
+**当前版本 v5.1** — 新增学生预选篮（前端预览方案检测冲突/学分/容量）、学生首页学业状态面板（今日课程/已选学分/最新成绩/提醒）、管理员运营看板（用户/课程/选课/成绩统计 + 热门课程TOP5 + 满员课程列表）。新增 DashboardController/DashboardService 聚合仪表盘数据，新增 AdminDashboardVO/CourseSummaryVO/StudentDashboardVO/EnrollmentPreviewRequest/EnrollmentPreviewVO 等 DTO。
 
 参考 E-R 图：`reference-er/`（OpenTextBC 大学注册模型，5 实体经典设计）。
 

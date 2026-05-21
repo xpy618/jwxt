@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理看板 - 教务管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/htmx.min.js"></script>
+</head>
+<body>
+
+<div class="sakura-container">
+    <div class="sakura" style="left: 5%; animation-duration: 12s; animation-delay: 0s; --size: 20px;"></div>
+    <div class="sakura" style="left: 18%; animation-duration: 14s; animation-delay: 2s; --size: 16px;"></div>
+    <div class="sakura" style="left: 35%; animation-duration: 11s; animation-delay: 4s; --size: 22px;"></div>
+    <div class="sakura" style="left: 52%; animation-duration: 15s; animation-delay: 1s; --size: 18px;"></div>
+    <div class="sakura" style="left: 70%; animation-duration: 13s; animation-delay: 3s; --size: 24px;"></div>
+    <div class="sakura" style="left: 85%; animation-duration: 16s; animation-delay: 5s; --size: 20px;"></div>
+</div>
+
+<div class="page-wrapper">
+    <div th:replace="fragments :: navbar"></div>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>管理看板</h2>
+            <p>系统运行数据概览</p>
+        </div>
+
+        <!-- 用户概览 -->
+        <h3 style="font-size:16px; font-weight:600; color:var(--text-light); margin-bottom:16px;">用户概览</h3>
+        <div class="dash-stats">
+            <div class="dash-stat-card">
+                <div class="dash-stat-number" id="stat-student">-</div>
+                <div class="dash-stat-label">学生</div>
+            </div>
+            <div class="dash-stat-card">
+                <div class="dash-stat-number" id="stat-teacher">-</div>
+                <div class="dash-stat-label">教师</div>
+            </div>
+            <div class="dash-stat-card">
+                <div class="dash-stat-number" id="stat-admin">-</div>
+                <div class="dash-stat-label">管理员</div>
+            </div>
+        </div>
+
+        <!-- 课程概览 -->
+        <h3 style="font-size:16px; font-weight:600; color:var(--text-light); margin-bottom:16px;">课程概览</h3>
+        <div class="dash-stats">
+            <div class="dash-stat-card">
+                <div class="dash-stat-number" id="stat-course">-</div>
+                <div class="dash-stat-label">课程总数</div>
+            </div>
+            <div class="dash-stat-card">
+                <div class="dash-stat-number" id="stat-unassigned">-</div>
+                <div class="dash-stat-label">未分配教师</div>
+            </div>
+            <div class="dash-stat-card">
+                <div class="dash-stat-number" id="stat-enrollment">-</div>
+                <div class="dash-stat-label">选课总人次</div>
+            </div>
+        </div>
+
+        <!-- 成绩概览 -->
+        <h3 style="font-size:16px; font-weight:600; color:var(--text-light); margin-bottom:16px;">成绩进度</h3>
+        <div class="dash-stats">
+            <div class="dash-stat-card">
+                <div class="dash-stat-number" id="stat-published" style="color:#4CAF50;">-</div>
+                <div class="dash-stat-label">已发布</div>
+            </div>
+            <div class="dash-stat-card">
+                <div class="dash-stat-number" id="stat-draft" style="color:#E8A030;">-</div>
+                <div class="dash-stat-label">草稿</div>
+            </div>
+            <div class="dash-stat-card">
+                <div class="dash-stat-number" id="stat-missing" style="color:#D44;">-</div>
+                <div class="dash-stat-label">未录入</div>
+            </div>
+        </div>
+
+        <!-- 热门课程 & 满员课程 -->
+        <div class="dash-panels">
+            <div class="card dash-panel-main">
+                <h4>热门课程 TOP5</h4>
+                <div id="popular-courses" style="margin-top:16px;">
+                    <div class="dash-empty">加载中...</div>
+                </div>
+            </div>
+            <div class="card dash-panel-side">
+                <h4>满员课程</h4>
+                <div id="full-courses" style="margin-top:16px;">
+                    <div class="dash-empty">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="fragments :: scripts"></div>
+
+<script>
+function authHeader() {
+    var token = localStorage.getItem('jwxt_token');
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
+function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function renderPopularCourses(courses) {
+    var container = document.getElementById('popular-courses');
+    if (!courses || courses.length === 0) {
+        container.innerHTML = '<div class="dash-empty">暂无课程数据</div>';
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < courses.length; i++) {
+        var c = courses[i];
+        var pct = c.maxStudents > 0 ? Math.round(c.enrolledCount / c.maxStudents * 100) : 0;
+        html += '<div class="dash-schedule-item" style="display:flex;justify-content:space-between;align-items:center;">';
+        html += '<div>';
+        html += '<div class="dash-schedule-name">' + (i + 1) + '. ' + esc(c.courseName) + '</div>';
+        html += '<div class="dash-schedule-meta">' + esc(c.teacherName) + '</div>';
+        html += '</div>';
+        html += '<div style="text-align:right;">';
+        html += '<span style="font-weight:700;color:var(--pink-deep);">' + c.enrolledCount + '</span>';
+        html += '<span style="font-size:12px;color:var(--text-lighter);"> / ' + c.maxStudents + ' (' + pct + '%)</span>';
+        html += '</div>';
+        html += '</div>';
+    }
+    container.innerHTML = html;
+}
+
+function renderFullCourses(courses) {
+    var container = document.getElementById('full-courses');
+    if (!courses || courses.length === 0) {
+        container.innerHTML = '<div class="dash-empty" style="color:#4CAF50;">暂无满员课程</div>';
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < courses.length; i++) {
+        var c = courses[i];
+        html += '<div class="dash-schedule-item">';
+        html += '<div class="dash-schedule-name">' + esc(c.courseName) + '</div>';
+        html += '<div class="dash-schedule-meta">' + esc(c.teacherName) + ' · ' + c.enrolledCount + '/' + c.maxStudents + '人</div>';
+        html += '</div>';
+    }
+    container.innerHTML = html;
+}
+
+async function loadDashboard() {
+    try {
+        var resp = await fetch('/api/dashboard/admin', { headers: authHeader() });
+        var result = await resp.json();
+        if (result.code !== 200 || !result.data) {
+            showAlert('加载看板数据失败', 'error');
+            return;
+        }
+        var d = result.data;
+
+        document.getElementById('stat-student').textContent = d.studentCount;
+        document.getElementById('stat-teacher').textContent = d.teacherCount;
+        document.getElementById('stat-admin').textContent = d.adminCount;
+        document.getElementById('stat-course').textContent = d.courseCount;
+        document.getElementById('stat-unassigned').textContent = d.unassignedCourseCount;
+        document.getElementById('stat-enrollment').textContent = d.enrollmentCount;
+        document.getElementById('stat-published').textContent = d.publishedGradeCount;
+        document.getElementById('stat-draft').textContent = d.draftGradeCount;
+        document.getElementById('stat-missing').textContent = d.missingGradeCount;
+
+        renderPopularCourses(d.popularCourses);
+        renderFullCourses(d.fullCourses);
+    } catch (e) {
+        showAlert('网络错误', 'error');
+    }
+}
+
+loadDashboard();
+</script>
+
+</body>
+</html>

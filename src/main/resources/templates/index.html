@@ -31,6 +31,37 @@
             <p>Cherry Blossom Teaching Affairs System</p>
         </div>
 
+        <!-- 学生学业状态面板 -->
+        <div id="student-dashboard" th:if="${role == 'STUDENT'}" style="display:none;">
+            <div class="dash-stats">
+                <div class="dash-stat-card">
+                    <div class="dash-stat-number" id="dash-credits">--</div>
+                    <div class="dash-stat-label">已选学分 / 30</div>
+                </div>
+                <div class="dash-stat-card">
+                    <div class="dash-stat-number" id="dash-course-count">--</div>
+                    <div class="dash-stat-label">已选课程</div>
+                </div>
+                <div class="dash-stat-card">
+                    <div class="dash-stat-number" id="dash-today-count">--</div>
+                    <div class="dash-stat-label">今日课程</div>
+                </div>
+            </div>
+
+            <div class="dash-panels">
+                <div class="card dash-panel-main">
+                    <h4 style="margin-bottom: 16px; color: var(--pink-deep);">今日课程</h4>
+                    <div id="dash-today-list"></div>
+                </div>
+                <div class="card dash-panel-side">
+                    <h4 style="margin-bottom: 16px; color: var(--pink-deep);">最新成绩</h4>
+                    <div id="dash-grades-list"></div>
+                    <h4 style="margin: 20px 0 12px; color: var(--pink-deep);">学业提醒</h4>
+                    <div id="dash-tips-list"></div>
+                </div>
+            </div>
+        </div>
+
         <div class="dashboard-cards">
             <a th:if="${role == 'STUDENT'}" href="/courses" class="dashboard-card">
                 <span class="card-icon">📚</span>
@@ -69,7 +100,7 @@
             </a>
         </div>
 
-        <div class="card" style="text-align:center; padding: 48px;">
+        <div th:if="${role != 'STUDENT'}" class="card" style="text-align:center; padding: 48px;">
             <span style="font-size:64px; display:block; margin-bottom:16px;">🌸</span>
             <p style="font-size:15px; color: var(--text-lighter);">
                 当前角色：<strong th:text="${role}" style="color: var(--pink-deep);">STUDENT</strong>
@@ -79,6 +110,58 @@
 </div>
 
 <div th:replace="fragments :: scripts"></div>
+
+<script th:if="${role == 'STUDENT'}">
+(function() {
+    fetch('/api/dashboard/student', { headers: authHeader() })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.code !== 200) return;
+            var d = res.data;
+            document.getElementById('dash-credits').textContent = d.selectedCredits;
+            document.getElementById('dash-course-count').textContent = d.selectedCourseCount;
+            document.getElementById('dash-today-count').textContent = d.todaySchedules ? d.todaySchedules.length : 0;
+
+            var todayList = document.getElementById('dash-today-list');
+            if (d.todaySchedules && d.todaySchedules.length > 0) {
+                todayList.innerHTML = d.todaySchedules.map(function(s) {
+                    return '<div class="dash-schedule-item">' +
+                        '<div class="dash-schedule-name">' + esc(s.courseName) + '</div>' +
+                        '<div class="dash-schedule-meta">' + esc(s.schedule) +
+                        (s.location ? ' | ' + esc(s.location) : '') +
+                        ' | ' + esc(s.teacherName) + '</div></div>';
+                }).join('');
+            } else {
+                todayList.innerHTML = '<div class="dash-empty">今天没有课程</div>';
+            }
+
+            var gradesList = document.getElementById('dash-grades-list');
+            if (d.latestGrades && d.latestGrades.length > 0) {
+                gradesList.innerHTML = d.latestGrades.map(function(g) {
+                    return '<div class="dash-grade-item">' +
+                        '<span class="dash-grade-course">' + esc(g.courseName) + '</span>' +
+                        '<span class="dash-grade-score">' + (g.score != null ? g.score + '分' : '--') + '</span></div>';
+                }).join('');
+            } else {
+                gradesList.innerHTML = '<div class="dash-empty">暂无已发布成绩</div>';
+            }
+
+            var tipsList = document.getElementById('dash-tips-list');
+            if (d.tips && d.tips.length > 0) {
+                tipsList.innerHTML = d.tips.map(function(t) {
+                    return '<div class="dash-tip">' + esc(t) + '</div>';
+                }).join('');
+            } else {
+                tipsList.innerHTML = '<div class="dash-empty">暂无提醒</div>';
+            }
+
+            document.getElementById('student-dashboard').style.display = 'block';
+        })
+        .catch(function() {
+            document.getElementById('student-dashboard').style.display = 'block';
+        });
+})();
+</script>
 
 </body>
 </html>

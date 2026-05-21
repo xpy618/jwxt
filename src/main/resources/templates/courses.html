@@ -6,6 +6,97 @@
     <title th:text="${role == 'STUDENT'} ? '课程浏览' : '课程管理'">课程 - 教务管理系统</title>
     <link rel="stylesheet" href="/css/style.css">
     <script src="/js/htmx.min.js"></script>
+    <style>
+        .basket-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 2px solid var(--pink);
+            z-index: 150;
+            transition: var(--transition);
+        }
+        .basket-bar.collapsed .basket-body { display: none; }
+        .basket-bar.collapsed .basket-arrow { transform: rotate(0deg); }
+        .basket-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .basket-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .basket-count {
+            font-weight: 700;
+            color: var(--pink-deep);
+            font-size: 15px;
+        }
+        .basket-credits {
+            font-size: 13px;
+            color: var(--text-light);
+        }
+        .basket-credits.warn { color: #D44; font-weight: 600; }
+        .basket-arrow {
+            font-size: 20px;
+            color: var(--pink);
+            transition: transform 0.3s;
+            transform: rotate(180deg);
+        }
+        .basket-body {
+            padding: 0 24px 16px;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .basket-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,183,197,0.2);
+            font-size: 14px;
+        }
+        .basket-item.conflict { color: #D44; }
+        .basket-item .basket-item-name { flex: 1; }
+        .basket-item .basket-item-credit { color: var(--pink-deep); font-weight: 600; margin: 0 12px; }
+        .basket-item .basket-item-remove { cursor: pointer; color: var(--text-lighter); font-size: 18px; line-height: 1; }
+        .basket-item .basket-item-remove:hover { color: #D44; }
+        .basket-warnings {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #FFF8F0;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: #E8A030;
+        }
+        .basket-warnings div { margin-bottom: 4px; }
+        .basket-warnings div:last-child { margin-bottom: 0; }
+        .basket-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .basket-empty {
+            padding: 16px 0;
+            text-align: center;
+            color: var(--text-lighter);
+            font-size: 14px;
+        }
+        .course-card.in-basket {
+            border: 2px solid var(--pink);
+        }
+        .course-card.conflict-card {
+            border: 2px solid #FF6B6B;
+            background: rgba(255,107,107,0.03);
+        }
+    </style>
 </head>
 <body>
 
@@ -39,6 +130,19 @@
             </div>
         </div>
     </div>
+
+    <th:block th:if="${role == 'STUDENT'}">
+    <div id="basket-bar" class="basket-bar collapsed" style="display:none;">
+        <div class="basket-header" onclick="toggleBasket()">
+            <div class="basket-header-left">
+                <span class="basket-count" id="basket-count-text">预选篮 (0)</span>
+                <span class="basket-credits" id="basket-credits-text"></span>
+            </div>
+            <span class="basket-arrow">▲</span>
+        </div>
+        <div class="basket-body" id="basket-body"></div>
+    </div>
+    </th:block>
 </div>
 
 <th:block th:if="${role == 'TEACHER' or role == 'ADMIN'}">
@@ -135,6 +239,168 @@
 
 <script th:inline="javascript">
 const ROLE = /*[[${role}]]*/ 'STUDENT';
+var basket = [];
+var previewWarnings = [];
+var conflictIds = [];
+
+function inBasket(courseId) {
+    for (var i = 0; i < basket.length; i++) {
+        if (basket[i].id === courseId) return true;
+    }
+    return false;
+}
+
+function toggleBasket() {
+    var bar = document.getElementById('basket-bar');
+    bar.classList.toggle('collapsed');
+}
+
+function addToBasket(c) {
+    if (inBasket(c.id)) return;
+    basket.push(c);
+    updateBasket();
+}
+
+function removeFromBasket(courseId) {
+    basket = basket.filter(function(x) { return x.id !== courseId; });
+    updateBasket();
+}
+
+function clearBasket() {
+    basket = [];
+    updateBasket();
+}
+
+async function updateBasket() {
+    var bar = document.getElementById('basket-bar');
+    var countEl = document.getElementById('basket-count-text');
+    var creditsEl = document.getElementById('basket-credits-text');
+    var body = document.getElementById('basket-body');
+
+    if (basket.length === 0) {
+        bar.style.display = 'none';
+        bar.classList.add('collapsed');
+        previewWarnings = [];
+        conflictIds = [];
+        renderCourseCards();
+        return;
+    }
+
+    bar.style.display = 'block';
+    countEl.textContent = '预选篮 (' + basket.length + ')';
+
+    var previewCredits = 0;
+    for (var i = 0; i < basket.length; i++) {
+        previewCredits += basket[i].credit;
+    }
+    creditsEl.textContent = previewCredits.toFixed(1) + ' 学分';
+    creditsEl.className = 'basket-credits';
+
+    // Call preview API
+    var courseIds = basket.map(function(x) { return x.id; });
+    try {
+        var resp = await fetch('/api/enrollments/preview', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+            body: JSON.stringify({ courseIds: courseIds })
+        });
+        var data = await resp.json();
+        if (data.code === 200 && data.data) {
+            previewWarnings = data.data.warnings || [];
+            conflictIds = data.data.conflictCourseIds || [];
+            if (!data.data.valid) {
+                creditsEl.className = 'basket-credits warn';
+            }
+        } else {
+            previewWarnings = [];
+            conflictIds = [];
+        }
+    } catch (e) {
+        previewWarnings = [];
+        conflictIds = [];
+    }
+
+    // Render basket body
+    var html = '';
+    for (var i = 0; i < basket.length; i++) {
+        var item = basket[i];
+        var isConflict = conflictIds.indexOf(item.id) !== -1;
+        html += '<div class="basket-item' + (isConflict ? ' conflict' : '') + '">';
+        html += '<span class="basket-item-name">' + esc(item.name) + (isConflict ? ' ⚠' : '') + '</span>';
+        html += '<span class="basket-item-credit">' + item.credit + ' 学分</span>';
+        html += '<span class="basket-item-remove" onclick="removeFromBasket(' + item.id + ')" title="移出预选篮">×</span>';
+        html += '</div>';
+    }
+
+    if (previewWarnings.length > 0) {
+        html += '<div class="basket-warnings">';
+        for (var j = 0; j < previewWarnings.length; j++) {
+            html += '<div>' + esc(previewWarnings[j]) + '</div>';
+        }
+        html += '</div>';
+    }
+
+    html += '<div class="basket-actions">';
+    html += '<button class="btn btn-sm btn-outline" onclick="clearBasket()">清空预选篮</button>';
+    html += '<button class="btn btn-sm btn-primary" onclick="confirmBasket()"' + (previewWarnings.length > 0 ? '' : '') + '>确认选课</button>';
+    html += '</div>';
+
+    body.innerHTML = html;
+    renderCourseCards();
+}
+
+function renderCourseCards() {
+    // Update card highlight states
+    var cards = document.querySelectorAll('.course-card');
+    for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var cid = parseInt(card.getAttribute('data-course-id'));
+        if (isNaN(cid)) continue;
+        card.classList.remove('in-basket', 'conflict-card');
+        if (inBasket(cid)) {
+            card.classList.add('in-basket');
+            if (conflictIds.indexOf(cid) !== -1) {
+                card.classList.add('conflict-card');
+            }
+        }
+    }
+}
+
+async function confirmBasket() {
+    if (basket.length === 0) return;
+    if (previewWarnings.length > 0) {
+        if (!confirm('预选方案存在风险提示，确定仍要提交选课吗？')) return;
+    }
+    var successCount = 0;
+    var failMessages = [];
+    for (var i = 0; i < basket.length; i++) {
+        try {
+            var resp = await fetch('/api/enrollments', {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+                body: JSON.stringify({ courseId: basket[i].id })
+            });
+            var data = await resp.json();
+            if (data.code === 200) {
+                successCount++;
+            } else {
+                failMessages.push(basket[i].name + ': ' + data.message);
+            }
+        } catch (e) {
+            failMessages.push(basket[i].name + ': 网络错误');
+        }
+    }
+    if (failMessages.length > 0) {
+        showAlert('成功 ' + successCount + ' 门，失败：' + failMessages.join('；'), 'error');
+    } else {
+        showAlert('全部选课成功！共 ' + successCount + ' 门', 'success');
+    }
+    basket = [];
+    previewWarnings = [];
+    conflictIds = [];
+    updateBasket();
+    loadCourses();
+}
 
 async function loadCourses() {
     var grid = document.getElementById('course-grid');
@@ -153,8 +419,9 @@ async function loadCourses() {
             var enrolled = c.enrolled !== undefined ? c.enrolled : false;
             var enrolledCount = c.enrolledCount || 0;
             var full = enrolledCount >= c.maxStudents;
+            var inB = inBasket(c.id);
 
-            html += '<div class="card course-card">';
+            html += '<div class="card course-card' + (inB ? ' in-basket' : '') + (inB && conflictIds.indexOf(c.id) !== -1 ? ' conflict-card' : '') + '" data-course-id="' + c.id + '">';
             html += '<div class="course-header">';
             html += '<span class="course-name">' + esc(c.name) + '</span>';
             html += '<span class="course-credit">' + c.credit + ' 学分</span>';
@@ -171,13 +438,18 @@ async function loadCourses() {
 
             if (ROLE === 'STUDENT') {
                 html += '<span class="enrollment-count">已选 <span class="count">' + enrolledCount + '</span>/' + c.maxStudents + '</span>';
+                html += '<div style="display:flex; gap:6px;">';
                 if (enrolled) {
                     html += '<button class="btn btn-sm btn-outline" onclick="unenroll(' + c.id + ')">退课</button>';
+                } else if (inB) {
+                    html += '<button class="btn btn-sm btn-outline" onclick="removeFromBasket(' + c.id + ')">移出预选篮</button>';
                 } else {
+                    html += '<button class="btn btn-sm btn-outline" style="border-color:var(--pink); color:var(--pink-deep);" onclick="addToBasketById(' + c.id + ')">＋ 预选篮</button>';
                     html += '<button class="btn btn-sm btn-primary" onclick="enroll(' + c.id + ')"' + (full ? ' disabled' : '') + '>';
                     html += full ? '已满' : '选课';
                     html += '</button>';
                 }
+                html += '</div>';
             } else {
                 html += '<span class="enrollment-count">已选 <span class="count">' + enrolledCount + '</span>/' + c.maxStudents + '</span>';
                 html += '<div class="teacher-actions">';
@@ -191,6 +463,24 @@ async function loadCourses() {
     } catch (e) {
         grid.innerHTML = '<div class="empty-state"><span class="empty-icon">❌</span><p>加载失败，请刷新重试</p></div>';
     }
+}
+
+function addToBasketById(courseId) {
+    // Already in basket - shouldn't happen since button state handles this, but be safe
+    if (inBasket(courseId)) return;
+    // Find the course data from the rendered card or fetch courses
+    // Re-fetch to get full course info
+    fetch('/api/courses/with-enrollment', { headers: authHeader() }).then(function(resp) { return resp.json(); }).then(function(data) {
+        if (data.code === 200 && data.data) {
+            var courses = data.data;
+            for (var i = 0; i < courses.length; i++) {
+                if (courses[i].id === courseId) {
+                    addToBasket(courses[i]);
+                    return;
+                }
+            }
+        }
+    }).catch(function() {});
 }
 
 
@@ -283,7 +573,6 @@ function editCourseFromButton(btn) {
     initWeekSelects();
     document.getElementById('course-start-week').value = c.startWeek || 1;
     document.getElementById('course-end-week').value = c.endWeek || 16;
-    // Parse existing schedules and check matching checkboxes
     var existingSchedules = c.schedule ? c.schedule.split('；') : [];
     document.querySelectorAll('input[name="schedules"]').forEach(function(cb) {
         cb.checked = existingSchedules.indexOf(cb.value) !== -1;

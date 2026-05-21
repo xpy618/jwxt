@@ -37,6 +37,11 @@
             </a>
         </li>
         <li th:if="${role == 'ADMIN'}">
+            <a href="/admin/dashboard">
+                📊 <span>管理看板</span>
+            </a>
+        </li>
+        <li th:if="${role == 'ADMIN'}">
             <a href="/courses">
                 📚 <span>课程管理</span>
             </a>

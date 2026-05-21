@@ -58,4 +58,12 @@ public class PageController {
         model.addAttribute("role", role.replace("ROLE_", ""));
         return "admin/users";
     }
+
+    @GetMapping("/admin/dashboard")
+    public String adminDashboard(Authentication auth, Model model) {
+        String role = auth.getAuthorities().iterator().next().getAuthority();
+        model.addAttribute("username", auth.getName());
+        model.addAttribute("role", role.replace("ROLE_", ""));
+        return "admin/dashboard";
+    }
 }
