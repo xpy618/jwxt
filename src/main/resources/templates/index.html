@@ -188,15 +188,15 @@
             document.getElementById('prog-total-text').textContent =
                 (d.totalCompletedCredits || 0) + ' / ' + (d.totalRequiredCredits || 0) + ' 学分';
 
-            var itemsHtml = '';
             var items = d.items || [];
+            var itemsHtml = '';
             for (var i = 0; i < items.length; i++) {
                 var it = items[i];
                 var ipct = it.progressPercent || 0;
                 var fillClass = ipct >= 80 ? 'good' : (ipct < 30 ? 'warn' : '');
                 itemsHtml += '<div class="progress-item">' +
                     '<span class="prog-category">' + esc(it.categoryName) + '</span>' +
-                    '<span class="prog-bar-wrap"><span class="prog-fill ' + fillClass + '" style="width:' + ipct + '%;"></span></span>' +
+                    '<div class="prog-bar-wrap"><div class="prog-fill ' + fillClass + '" style="width:' + ipct + '%;"></div></div>' +
                     '<span class="prog-text">' + (it.completedCredits || 0) + ' / ' + (it.requiredCredits || 0) + ' 学分</span>' +
                     '</div>';
             }

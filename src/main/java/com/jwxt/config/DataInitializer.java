@@ -88,7 +88,7 @@ public class DataInitializer implements CommandLineRunner {
                 new String[][]{{"周一 16:30-18:10", "播馨-101", "2", "17"}});
 
         createCourse("大学体育(四)(羽毛球3-56)", "羽毛球基本技术与战术训练",
-                t6.getId(), 30, "2025-2026-2", 1.0f, CourseCategory.PE,
+                t6.getId(), 10, "2025-2026-2", 1.0f, CourseCategory.PE,
                 new String[][]{{"周三 14:30-16:10", "羽毛球主馆", "2", "17"}});
 
         List<Course> requiredCourses = courseRepository.findByCategory(CourseCategory.REQUIRED);

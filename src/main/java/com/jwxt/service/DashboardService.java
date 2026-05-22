@@ -265,7 +265,7 @@ public class DashboardService {
 
     public AcademicProgressVO getAcademicProgress(Long studentId) {
         Map<CourseCategory, Double> requiredMap = Map.of(
-                CourseCategory.REQUIRED, 12.0,
+                CourseCategory.REQUIRED, 18.5,
                 CourseCategory.ELECTIVE, 6.0,
                 CourseCategory.PE, 1.0
         );
