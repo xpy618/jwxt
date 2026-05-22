@@ -70,6 +70,31 @@
                 </div>
             </div>
 
+            <div id="grade-summary" style="display:none;">
+                <div class="card" style="margin-bottom:16px;">
+                    <h3 style="margin:0 0 16px 0; font-size:16px;">成绩录入概览</h3>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(100px,1fr)); gap:12px; margin-bottom:12px;">
+                        <div class="stat-item"><span class="stat-label">选课人数</span><span class="stat-value" id="stat-enrolled">-</span></div>
+                        <div class="stat-item"><span class="stat-label">已录入</span><span class="stat-value text-success" id="stat-recorded">-</span></div>
+                        <div class="stat-item"><span class="stat-label">未录入</span><span class="stat-value text-danger" id="stat-missing">-</span></div>
+                        <div class="stat-item"><span class="stat-label">草稿</span><span class="stat-value text-draft" id="stat-draft">-</span></div>
+                        <div class="stat-item"><span class="stat-label">已发布</span><span class="stat-value text-published" id="stat-published">-</span></div>
+                    </div>
+                    <div style="display:flex; gap:24px; flex-wrap:wrap; padding-top:8px; border-top:1px solid var(--border);">
+                        <span style="font-size:13px; color:var(--text-lighter);">平均分：<strong id="stat-avg">-</strong></span>
+                        <span style="font-size:13px; color:var(--text-lighter);">最高分：<strong id="stat-max">-</strong></span>
+                        <span style="font-size:13px; color:var(--text-lighter);">最低分：<strong id="stat-min">-</strong></span>
+                    </div>
+                </div>
+                <div id="grade-warnings" style="margin-bottom:16px;"></div>
+                <div id="missing-students-panel" style="display:none; margin-bottom:16px;">
+                    <div class="card" style="border-left: 4px solid var(--danger);">
+                        <p style="margin:0 0 8px 0; font-weight:600; font-size:14px;">未录入成绩学生</p>
+                        <ul id="missing-students-list" style="margin:0; padding-left:20px; font-size:14px; color:var(--text-lighter);"></ul>
+                    </div>
+                </div>
+            </div>
+
             <div id="teacher-grades-table" class="table-wrapper">
                 <div class="empty-state"><span class="empty-icon">👆</span><p>请先选择一门课程</p></div>
             </div>
@@ -163,6 +188,8 @@ async function loadGPA() {
 }
 
 // ===== TEACHER =====
+var currentSummary = null;
+
 async function loadTeacherCourses() {
     var select = document.getElementById('teacher-course-select');
     try {
@@ -185,10 +212,13 @@ async function loadTeacherGrades() {
     var container = document.getElementById('teacher-grades-table');
     if (!courseId) {
         container.innerHTML = '<div class="empty-state"><span class="empty-icon">👆</span><p>请先选择一门课程</p></div>';
+        document.getElementById('grade-summary').style.display = 'none';
+        currentSummary = null;
         updateTeacherButtons(null);
         return;
     }
     currentCourseId = parseInt(courseId);
+		loadGradeSummary(currentCourseId);
 
     try {
         var resp = await fetch('/api/grades/course/' + courseId, { headers: authHeader() });
@@ -239,13 +269,74 @@ function updateTeacherButtons(grades) {
         btnWithdraw.disabled = true;
         return;
     }
-    var hasDraft = false, hasPublished = false;
+    var hasPublished = false;
     for (var i = 0; i < grades.length; i++) {
-        if (grades[i].status === 'DRAFT') hasDraft = true;
         if (grades[i].status === 'PUBLISHED') hasPublished = true;
     }
-    btnPublish.disabled = !hasDraft;
+    btnPublish.disabled = !(currentSummary && currentSummary.readyToPublish);
     btnWithdraw.disabled = !hasPublished;
+}
+
+async function loadGradeSummary(courseId) {
+    var panel = document.getElementById('grade-summary');
+    try {
+        var resp = await fetch('/api/grades/teacher/course/' + courseId + '/summary', { headers: authHeader() });
+        var data = await resp.json();
+        if (data.code !== 200 || !data.data) {
+            panel.style.display = 'none';
+            currentSummary = null;
+            return;
+        }
+        currentSummary = data.data;
+        panel.style.display = '';
+
+        document.getElementById('stat-enrolled').textContent = currentSummary.enrolledCount || 0;
+        document.getElementById('stat-recorded').textContent = currentSummary.recordedCount || 0;
+        document.getElementById('stat-missing').textContent = currentSummary.missingCount || 0;
+        document.getElementById('stat-draft').textContent = currentSummary.draftCount || 0;
+        document.getElementById('stat-published').textContent = currentSummary.publishedCount || 0;
+
+        var avgEl = document.getElementById('stat-avg');
+        var maxEl = document.getElementById('stat-max');
+        var minEl = document.getElementById('stat-min');
+        if (currentSummary.recordedCount > 0) {
+            avgEl.textContent = currentSummary.averageScore != null ? currentSummary.averageScore.toFixed(1) : '-';
+            maxEl.textContent = currentSummary.maxScore != null ? currentSummary.maxScore.toFixed(1) : '-';
+            minEl.textContent = currentSummary.minScore != null ? currentSummary.minScore.toFixed(1) : '-';
+        } else {
+            avgEl.textContent = maxEl.textContent = minEl.textContent = '-';
+        }
+
+        var warningsDiv = document.getElementById('grade-warnings');
+        if (currentSummary.warnings && currentSummary.warnings.length > 0) {
+            var wh = '';
+            for (var i = 0; i < currentSummary.warnings.length; i++) {
+                wh += '<div class="grade-summary-warning">' + esc(currentSummary.warnings[i]) + '</div>';
+            }
+            warningsDiv.innerHTML = wh;
+        } else {
+            warningsDiv.innerHTML = '';
+        }
+
+        var missingPanel = document.getElementById('missing-students-panel');
+        var missingList = document.getElementById('missing-students-list');
+        if (currentSummary.missingStudents && currentSummary.missingStudents.length > 0) {
+            missingPanel.style.display = '';
+            var items = '';
+            for (var j = 0; j < currentSummary.missingStudents.length; j++) {
+                var s = currentSummary.missingStudents[j];
+                items += '<li>' + esc(s.studentName) + '（' + s.studentId + '）</li>';
+            }
+            missingList.innerHTML = items;
+        } else {
+            missingPanel.style.display = 'none';
+        }
+
+        updateTeacherButtons(currentGrades);
+    } catch (e) {
+        panel.style.display = 'none';
+        currentSummary = null;
+    }
 }
 
 async function saveOneGrade(idx) {

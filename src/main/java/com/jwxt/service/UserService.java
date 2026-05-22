@@ -5,6 +5,9 @@ import com.jwxt.config.JwtUtils;
 import com.jwxt.dto.LoginRequest;
 import com.jwxt.dto.LoginResponse;
 import com.jwxt.dto.RegisterRequest;
+import com.jwxt.entity.Course;
+import com.jwxt.entity.CourseCategory;
+import com.jwxt.entity.Enrollment;
 import com.jwxt.entity.Role;
 import com.jwxt.entity.User;
 import com.jwxt.repository.CourseRepository;
@@ -64,7 +67,17 @@ public class UserService {
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
         user.setEnabled(true);
-        userRepository.save(user);
+        user = userRepository.save(user);
+
+        if (user.getRole() == Role.STUDENT) {
+            List<Course> requiredCourses = courseRepository.findByCategory(CourseCategory.REQUIRED);
+            for (Course course : requiredCourses) {
+                Enrollment enrollment = new Enrollment();
+                enrollment.setStudentId(user.getId());
+                enrollment.setCourseId(course.getId());
+                enrollmentRepository.save(enrollment);
+            }
+        }
     }
 
     public List<User> listUsers() {

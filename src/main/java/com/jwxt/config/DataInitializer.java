@@ -3,10 +3,13 @@ package com.jwxt.config;
 import com.jwxt.entity.*;
 import com.jwxt.repository.CourseRepository;
 import com.jwxt.repository.CourseSlotRepository;
+import com.jwxt.repository.EnrollmentRepository;
 import com.jwxt.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -14,15 +17,18 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
     private final CourseSlotRepository slotRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataInitializer(UserRepository userRepository,
                            CourseRepository courseRepository,
                            CourseSlotRepository slotRepository,
+                           EnrollmentRepository enrollmentRepository,
                            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
         this.slotRepository = slotRepository;
+        this.enrollmentRepository = enrollmentRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -84,6 +90,17 @@ public class DataInitializer implements CommandLineRunner {
         createCourse("大学体育(四)(羽毛球3-56)", "羽毛球基本技术与战术训练",
                 t6.getId(), 30, "2025-2026-2", 1.0f, CourseCategory.PE,
                 new String[][]{{"周三 14:30-16:10", "羽毛球主馆", "2", "17"}});
+
+        List<Course> requiredCourses = courseRepository.findByCategory(CourseCategory.REQUIRED);
+        User[] students = {s1, s2, s3, s4};
+        for (User student : students) {
+            for (Course course : requiredCourses) {
+                Enrollment enrollment = new Enrollment();
+                enrollment.setStudentId(student.getId());
+                enrollment.setCourseId(course.getId());
+                enrollmentRepository.save(enrollment);
+            }
+        }
     }
 
     private User createTeacher(String username, String name) {

@@ -89,13 +89,6 @@
             color: var(--text-lighter);
             font-size: 14px;
         }
-        .course-card.in-basket {
-            border: 2px solid var(--pink);
-        }
-        .course-card.conflict-card {
-            border: 2px solid #FF6B6B;
-            background: rgba(255,107,107,0.03);
-        }
     </style>
 </head>
 <body>
@@ -426,40 +419,77 @@ async function loadCourses() {
             var c = courses[i];
             var enrolled = c.enrolled !== undefined ? c.enrolled : false;
             var enrolledCount = c.enrolledCount || 0;
-            var full = enrolledCount >= c.maxStudents;
+            var maxStudents = c.maxStudents || 1;
+            var full = enrolledCount >= maxStudents;
+            var ratio = Math.min(enrolledCount / maxStudents, 1);
+            var barClass = ratio >= 1 ? 'full' : (ratio >= 0.85 ? 'almost-full' : '');
             var inB = inBasket(c.id);
+            var catKey = (c.category || 'ELECTIVE').toLowerCase();
+            var catClass = 'cat-' + (catKey === 'required' ? 'required' : catKey === 'pe' ? 'pe' : 'elective');
+            var catName = catKey === 'required' ? '必修' : catKey === 'pe' ? '体育' : '选修';
+            var scheduleList = c.schedule ? c.schedule.split('；') : [];
+            var locationList = c.location ? c.location.split('；') : [];
+            var teacherInitial = c.teacherName ? c.teacherName.charAt(0) : '?';
 
-            html += '<div class="card course-card' + (inB ? ' in-basket' : '') + (inB && conflictIds.indexOf(c.id) !== -1 ? ' conflict-card' : '') + '" data-course-id="' + c.id + '">';
+            html += '<div class="card course-card ' + catClass + (inB ? ' in-basket' : '') + (inB && conflictIds.indexOf(c.id) !== -1 ? ' conflict-card' : '') + '" data-course-id="' + c.id + '">';
+            html += '<div class="course-card-body">';
+
             html += '<div class="course-header">';
             html += '<span class="course-name">' + esc(c.name) + '</span>';
-            html += '<span class="course-credit">' + c.credit + ' 学分</span>';
-            html += '</div>';
-            html += '<div class="course-meta">';
-            html += '<span>👩‍🏫 ' + esc(c.teacherName || '') + '</span>';
-            html += '<span>📅 ' + esc(c.semester || '') + '</span>';
-            if (c.schedule) html += '<span>🕐 ' + esc(c.schedule).replace(/；/g, '<br>🕐 ') + '</span>';
-            if (c.location) html += '<span>📍 ' + esc(c.location).replace(/；/g, '<br>📍 ') + '</span>';
-            if (c.startWeek && c.endWeek) html += '<span>📆 第' + c.startWeek + '-' + c.endWeek + '周</span>';
-            html += '</div>';
-            if (c.description) html += '<div class="course-desc">' + esc(c.description) + '</div>';
-            html += '<div class="course-footer">';
+            html += '<div class="course-badges">';
+            html += '<span class="credit-badge">' + c.credit + ' 学分</span>';
+            html += '<span class="category-badge ' + catClass + '">' + catName + '</span>';
+            html += '</div></div>';
 
+            html += '<div class="course-meta-row">';
+            if (c.teacherName) {
+                html += '<span class="meta-item"><span class="teacher-avatar">' + esc(teacherInitial) + '</span><span>' + esc(c.teacherName) + '</span></span>';
+            }
+            if (c.semester) {
+                html += '<span class="meta-item">📅 ' + esc(c.semester) + '</span>';
+            }
+            html += '</div>';
+
+            if (scheduleList.length > 0) {
+                html += '<div class="schedule-chips">';
+                for (var s = 0; s < scheduleList.length; s++) {
+                    html += '<div class="schedule-chip">' + esc(scheduleList[s]) + '</div>';
+                }
+                html += '</div>';
+            }
+
+            if (locationList.length > 0) {
+                html += '<div class="course-location">📍 ' + esc(locationList.join(' / ')) + '</div>';
+            }
+
+            if (c.startWeek && c.endWeek) {
+                html += '<div style="font-size:12px;color:var(--text-lighter);">📆 第' + c.startWeek + '-' + c.endWeek + '周</div>';
+            }
+
+            if (c.description) {
+                html += '<div class="course-desc">' + esc(c.description) + '</div>';
+            }
+
+            html += '<div class="enrollment-progress">';
+            html += '<div class="enroll-bar-wrap"><div class="enroll-bar-fill ' + barClass + '" style="width:' + (ratio * 100) + '%"></div></div>';
+            html += '<span class="enroll-text">' + enrolledCount + ' / ' + maxStudents + '</span>';
+            html += '</div>';
+
+            html += '</div>';
+
+            html += '<div class="course-footer">';
             if (ROLE === 'STUDENT') {
-                html += '<span class="enrollment-count">已选 <span class="count">' + enrolledCount + '</span>/' + c.maxStudents + '</span>';
-                html += '<div style="display:flex; gap:6px;">';
+                html += '<div class="action-group">';
                 if (enrolled) {
                     html += '<button class="btn btn-sm btn-outline" onclick="unenroll(' + c.id + ')">退课</button>';
                 } else if (inB) {
                     html += '<button class="btn btn-sm btn-outline" onclick="removeFromBasket(' + c.id + ')">移出预选篮</button>';
                 } else {
-                    html += '<button class="btn btn-sm btn-outline" style="border-color:var(--pink); color:var(--pink-deep);" onclick="addToBasketById(' + c.id + ')">＋ 预选篮</button>';
-                    html += '<button class="btn btn-sm btn-primary" onclick="enroll(' + c.id + ')"' + (full ? ' disabled' : '') + '>';
-                    html += full ? '已满' : '选课';
-                    html += '</button>';
+                    html += '<button class="btn btn-sm btn-outline" style="border-color:var(--pink);color:var(--pink-deep);" onclick="addToBasketById(' + c.id + ')">＋ 预选篮</button>';
+                    html += '<button class="btn btn-sm btn-primary" onclick="enroll(' + c.id + ')"' + (full ? ' disabled' : '') + '>' + (full ? '已满' : '选课') + '</button>';
                 }
                 html += '</div>';
             } else {
-                html += '<span class="enrollment-count">已选 <span class="count">' + enrolledCount + '</span>/' + c.maxStudents + '</span>';
                 html += '<div class="teacher-actions">';
                 html += '<button class="btn btn-sm btn-outline" data-course=\'' + JSON.stringify(c).replace(/'/g, '&#39;') + '\' onclick="editCourseFromButton(this)">编辑</button>';
                 html += '<button class="btn btn-sm btn-danger" onclick="deleteCourse(' + c.id + ')">删除</button>';

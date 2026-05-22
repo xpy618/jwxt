@@ -2,6 +2,7 @@ package com.jwxt.controller;
 
 import com.jwxt.common.Result;
 import com.jwxt.dto.GradeRequest;
+import com.jwxt.dto.GradeSummaryVO;
 import com.jwxt.dto.GradeVO;
 import com.jwxt.entity.Enrollment;
 import com.jwxt.service.GradeService;
@@ -62,10 +63,23 @@ public class GradeController {
         return Result.success();
     }
 
+    @GetMapping("/teacher/course/{courseId}/summary")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public Result<GradeSummaryVO> courseGradeSummary(@PathVariable Long courseId) {
+        return Result.success(gradeService.getCourseGradeSummary(courseId));
+    }
+
     @GetMapping("/gpa")
     @PreAuthorize("hasRole('STUDENT')")
     public Result<Float> gpa(Authentication auth, @RequestParam String semester) {
         Long studentId = (Long) auth.getCredentials();
         return Result.success(gradeService.calculateGPA(studentId, semester));
+    }
+
+    @PostMapping("/admin/batch-grade")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Integer> batchGrade() {
+        int count = gradeService.batchGradeAll();
+        return Result.success(count);
     }
 }

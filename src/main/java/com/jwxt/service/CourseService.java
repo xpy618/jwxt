@@ -360,9 +360,12 @@ public class CourseService {
     private List<CourseVO> buildCourseVOs(List<Course> courses, Set<Long> enrolledCourseIds) {
         if (courses.isEmpty()) return List.of();
 
-        List<Long> courseIds = new ArrayList<>(courses.size());
+        List<Course> sorted = new ArrayList<>(courses);
+        sorted.sort(Comparator.comparingInt(c -> c.getCategory() == null ? 3 : c.getCategory().ordinal()));
+
+        List<Long> courseIds = new ArrayList<>(sorted.size());
         Set<Long> teacherIds = new HashSet<>();
-        for (Course c : courses) {
+        for (Course c : sorted) {
             courseIds.add(c.getId());
             if (c.getTeacherId() != null) teacherIds.add(c.getTeacherId());
         }
@@ -378,7 +381,7 @@ public class CourseService {
         Map<Long, List<CourseSlot>> slotsByCourse = allSlots.stream()
                 .collect(Collectors.groupingBy(CourseSlot::getCourseId));
 
-        return courses.stream().map(course -> {
+        return sorted.stream().map(course -> {
             List<CourseSlot> slots = slotsByCourse.getOrDefault(course.getId(), List.of());
             CourseVO vo = new CourseVO();
             vo.setId(course.getId());
@@ -398,23 +401,25 @@ public class CourseService {
                 vo.setEndWeek(16);
             } else {
                 StringBuilder sbSchedule = new StringBuilder();
-                StringBuilder sbLocation = new StringBuilder();
+                Set<String> locations = new LinkedHashSet<>();
                 int minStart = Integer.MAX_VALUE;
                 int maxEnd = Integer.MIN_VALUE;
                 for (int i = 0; i < slots.size(); i++) {
                     if (i > 0) {
                         sbSchedule.append("；");
-                        sbLocation.append("；");
                     }
                     sbSchedule.append(slots.get(i).getSchedule());
-                    sbLocation.append(slots.get(i).getLocation() != null ? slots.get(i).getLocation() : "");
+                    String loc = slots.get(i).getLocation();
+                    if (loc != null && !loc.isBlank()) {
+                        locations.add(loc);
+                    }
                     int sw = slots.get(i).getStartWeek() != null ? slots.get(i).getStartWeek() : 1;
                     int ew = slots.get(i).getEndWeek() != null ? slots.get(i).getEndWeek() : 16;
                     if (sw < minStart) minStart = sw;
                     if (ew > maxEnd) maxEnd = ew;
                 }
                 vo.setSchedule(sbSchedule.toString());
-                vo.setLocation(sbLocation.toString());
+                vo.setLocation(locations.isEmpty() ? null : String.join("；", locations));
                 vo.setStartWeek(minStart);
                 vo.setEndWeek(maxEnd);
             }

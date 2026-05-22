@@ -124,6 +124,7 @@ POST|PUT|DELETE /api/courses → TEACHER, ADMIN
 /api/grades/teacher/**    → TEACHER
 /api/grades/publish/**     → TEACHER
 /api/grades/withdraw/**    → TEACHER
+/api/grades/admin/**      → ADMIN（批量打分等）
 /api/admin/**             → ADMIN（含重置密码、删除用户等）
 其他所有请求               → authenticated
 ```
@@ -211,7 +212,13 @@ Course (1) ──── (N) CourseSlot
 - **CSS**: `static/css/style.css`，樱花粉 (#FFB7C5) 配色方案，CSS 变量统一管理
 - **页面编辑按钮**: 使用 `data-course` 属性 + `JSON.stringify` 传值，避免内联 onclick 参数蔓延和 XSS 风险
 
-**当前版本 v5.2** — 新增轻量培养方案与学业进度：Course 实体增加 CourseCategory（REQUIRED/ELECTIVE/PE），课程表单支持类别选择，学生首页展示总进度条和必修/选修/体育三条分类进度条（仅统计已发布且>=60分的成绩）。种子课程除羽毛球(体育)外均为必修。学分要求：必修12 + 选修6 + 体育1 = 总计19学分（Service 常量）。
+**当前版本 v6.0** — 课程卡片网格重设计 + 类别排序 + 批量成绩录入：
+
+- **课程卡片网格**: 每行 3 张卡片，顶部 4px 类别色条（必修=樱粉、选修=蓝、体育=绿），时段以 `▸ 周一 10:20-12:00` 标签独立展示，选课人数显示为细进度条（≥85% 橙色，满员红色），卡片入场有交错淡入动画（`cardFadeIn`）。预选篮中卡片有粉色光环，冲突卡片有红色光环。
+- **课程类别排序**: `buildCourseVOs()` 中按枚举序数排序（REQUIRED→ELECTIVE→PE），所有课程接口统一返回此顺序。
+- **批量成绩录入**: `POST /api/grades/admin/batch-grade`（仅 ADMIN），为所有已选课学生随机打分并直布，已有成绩的记录跳过（幂等）。高亨(gaoheng)分数 90+，其他学生 60-95 随机。
+- **成绩模型**: 成绩存储在 `Enrollment` 实体中（`score`, `gpaPoint`, `status` 字段，`GradeStatus` 枚举），无独立 Grade 表。`GradeService` 直接操作 `EnrollmentRepository`。
+- v5.2 遗留：Course 实体增加 CourseCategory（REQUIRED/ELECTIVE/PE），课程表单支持类别选择，学生首页展示总进度条和必修/选修/体育三条分类进度条（仅统计已发布且>=60分的成绩）。种子课程除羽毛球(体育)外均为必修。学分要求：必修12 + 选修6 + 体育1 = 总计19学分（Service 常量）。
 
 参考 E-R 图：`reference-er/`（OpenTextBC 大学注册模型，5 实体经典设计）。
 
