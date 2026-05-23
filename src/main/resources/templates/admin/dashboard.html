@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理看板 - 教务管理系统</title>
     <link rel="stylesheet" href="/css/style.css">
-    <script src="/js/htmx.min.js"></script>
 </head>
 <body>
 
@@ -24,72 +23,160 @@
     <div class="container">
         <div class="page-header">
             <h2>管理看板</h2>
-            <p>系统运行数据概览</p>
+            <p>系统运行数据概览 · 实时监控</p>
         </div>
 
-        <!-- 用户概览 -->
-        <h3 style="font-size:16px; font-weight:600; color:var(--text-light); margin-bottom:16px;">用户概览</h3>
-        <div class="dash-stats">
-            <div class="dash-stat-card">
-                <div class="dash-stat-number" id="stat-student">-</div>
-                <div class="dash-stat-label">学生</div>
-            </div>
-            <div class="dash-stat-card">
-                <div class="dash-stat-number" id="stat-teacher">-</div>
-                <div class="dash-stat-label">教师</div>
-            </div>
-            <div class="dash-stat-card">
-                <div class="dash-stat-number" id="stat-admin">-</div>
-                <div class="dash-stat-label">管理员</div>
-            </div>
-        </div>
-
-        <!-- 课程概览 -->
-        <h3 style="font-size:16px; font-weight:600; color:var(--text-light); margin-bottom:16px;">课程概览</h3>
-        <div class="dash-stats">
-            <div class="dash-stat-card">
-                <div class="dash-stat-number" id="stat-course">-</div>
-                <div class="dash-stat-label">课程总数</div>
-            </div>
-            <div class="dash-stat-card">
-                <div class="dash-stat-number" id="stat-unassigned">-</div>
-                <div class="dash-stat-label">未分配教师</div>
-            </div>
-            <div class="dash-stat-card">
-                <div class="dash-stat-number" id="stat-enrollment">-</div>
-                <div class="dash-stat-label">选课总人次</div>
-            </div>
-        </div>
-
-        <!-- 成绩概览 -->
-        <h3 style="font-size:16px; font-weight:600; color:var(--text-light); margin-bottom:16px;">成绩进度</h3>
-        <div class="dash-stats">
-            <div class="dash-stat-card">
-                <div class="dash-stat-number" id="stat-published" style="color:#4CAF50;">-</div>
-                <div class="dash-stat-label">已发布</div>
-            </div>
-            <div class="dash-stat-card">
-                <div class="dash-stat-number" id="stat-draft" style="color:#E8A030;">-</div>
-                <div class="dash-stat-label">草稿</div>
-            </div>
-            <div class="dash-stat-card">
-                <div class="dash-stat-number" id="stat-missing" style="color:#D44;">-</div>
-                <div class="dash-stat-label">未录入</div>
-            </div>
-        </div>
-
-        <!-- 热门课程 & 满员课程 -->
-        <div class="dash-panels">
-            <div class="card dash-panel-main">
-                <h4>热门课程 TOP5</h4>
-                <div id="popular-courses" style="margin-top:16px;">
-                    <div class="dash-empty">加载中...</div>
+        <!-- ====== 总览横幅 ====== -->
+        <div class="adm-banner card" style="margin-bottom:28px;padding:20px 28px;">
+            <div class="adm-banner-inner">
+                <div class="adm-banner-item">
+                    <span class="adm-banner-num" id="banner-total-users">-</span>
+                    <span class="adm-banner-label">系统总用户</span>
+                </div>
+                <div class="adm-banner-divider"></div>
+                <div class="adm-banner-item">
+                    <span class="adm-banner-num" id="banner-total-courses">-</span>
+                    <span class="adm-banner-label">开设课程</span>
+                </div>
+                <div class="adm-banner-divider"></div>
+                <div class="adm-banner-item">
+                    <span class="adm-banner-num" id="banner-enrollment-rate">-%</span>
+                    <span class="adm-banner-label">平均选课率</span>
+                </div>
+                <div class="adm-banner-divider"></div>
+                <div class="adm-banner-item">
+                    <span class="adm-banner-num" id="banner-grade-rate">-%</span>
+                    <span class="adm-banner-label">成绩发布率</span>
                 </div>
             </div>
-            <div class="card dash-panel-side">
-                <h4>满员课程</h4>
-                <div id="full-courses" style="margin-top:16px;">
-                    <div class="dash-empty">加载中...</div>
+        </div>
+
+        <!-- ====== 用户概览 ====== -->
+        <div class="adm-section">
+            <div class="adm-section-header">
+                <h3><span class="adm-section-icon">👥</span> 用户概览</h3>
+            </div>
+            <div class="adm-stat-row quad">
+                <div class="adm-stat-card anim-1">
+                    <div class="adm-stat-icon" style="background:linear-gradient(135deg,#FFE8EE,#FFD4DE);">👨‍🎓</div>
+                    <div class="adm-stat-body">
+                        <div class="adm-stat-num" id="stat-student">-</div>
+                        <div class="adm-stat-label">学生</div>
+                    </div>
+                </div>
+                <div class="adm-stat-card anim-2">
+                    <div class="adm-stat-icon" style="background:linear-gradient(135deg,#E8F0FE,#D0E2FC);">👩‍🏫</div>
+                    <div class="adm-stat-body">
+                        <div class="adm-stat-num" id="stat-teacher">-</div>
+                        <div class="adm-stat-label">教师</div>
+                    </div>
+                </div>
+                <div class="adm-stat-card anim-3">
+                    <div class="adm-stat-icon" style="background:linear-gradient(135deg,#FFF3E0,#FFE8CC);">🛡️</div>
+                    <div class="adm-stat-body">
+                        <div class="adm-stat-num" id="stat-admin">-</div>
+                        <div class="adm-stat-label">管理员</div>
+                    </div>
+                </div>
+                <div class="adm-stat-card anim-4">
+                    <div class="adm-stat-icon" style="background:linear-gradient(135deg,#F0F0FF,#E0E0F8);">👥</div>
+                    <div class="adm-stat-body">
+                        <div class="adm-stat-num" id="stat-total-users">-</div>
+                        <div class="adm-stat-label">合计</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== 课程概览 ====== -->
+        <div class="adm-section">
+            <div class="adm-section-header">
+                <h3><span class="adm-section-icon">📚</span> 课程概览</h3>
+            </div>
+            <div class="adm-stat-row triple">
+                <div class="adm-stat-card anim-1">
+                    <div class="adm-stat-icon" style="background:linear-gradient(135deg,#E8F5E9,#D0ECD2);">📖</div>
+                    <div class="adm-stat-body">
+                        <div class="adm-stat-num" id="stat-course">-</div>
+                        <div class="adm-stat-label">课程总数</div>
+                    </div>
+                </div>
+                <div class="adm-stat-card anim-2" id="card-unassigned">
+                    <div class="adm-stat-icon" style="background:linear-gradient(135deg,#FFF8E1,#FFECC0);">⚠️</div>
+                    <div class="adm-stat-body">
+                        <div class="adm-stat-num" id="stat-unassigned">-</div>
+                        <div class="adm-stat-label">待分配教师</div>
+                    </div>
+                </div>
+                <div class="adm-stat-card anim-3">
+                    <div class="adm-stat-icon" style="background:linear-gradient(135deg,#FCE4EC,#F8D0DC);">📝</div>
+                    <div class="adm-stat-body">
+                        <div class="adm-stat-num" id="stat-enrollment">-</div>
+                        <div class="adm-stat-label">选课总人次</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== 成绩进度 ====== -->
+        <div class="adm-section">
+            <div class="adm-section-header">
+                <h3><span class="adm-section-icon">📊</span> 成绩进度</h3>
+                <span class="adm-section-badge" id="grade-completion-badge">等待数据</span>
+            </div>
+            <div class="card" style="padding:28px;">
+                <div class="adm-grade-progress">
+                    <div class="adm-grade-bar-wrap">
+                        <div class="adm-grade-seg published" id="grade-bar-published" style="width:0%;"></div>
+                        <div class="adm-grade-seg draft" id="grade-bar-draft" style="width:0%;"></div>
+                        <div class="adm-grade-seg missing" id="grade-bar-missing" style="width:0%;"></div>
+                    </div>
+                </div>
+                <div class="adm-grade-legend">
+                    <div class="adm-grade-legend-item">
+                        <span class="adm-grade-dot published"></span>
+                        <span class="adm-grade-legend-label">已发布</span>
+                        <span class="adm-grade-legend-val" id="stat-published">-</span>
+                    </div>
+                    <div class="adm-grade-legend-item">
+                        <span class="adm-grade-dot draft"></span>
+                        <span class="adm-grade-legend-label">草稿</span>
+                        <span class="adm-grade-legend-val" id="stat-draft">-</span>
+                    </div>
+                    <div class="adm-grade-legend-item">
+                        <span class="adm-grade-dot missing"></span>
+                        <span class="adm-grade-legend-label">未录入</span>
+                        <span class="adm-grade-legend-val" id="stat-missing">-</span>
+                    </div>
+                    <div class="adm-grade-legend-item total">
+                        <span class="adm-grade-legend-label">合计</span>
+                        <span class="adm-grade-legend-val" id="stat-grade-total">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== 课程排行 ====== -->
+        <div class="adm-section">
+            <div class="dash-panels">
+                <!-- 热门课程 -->
+                <div class="card anim-1" style="padding:24px 28px;">
+                    <div class="adm-panel-title">
+                        <span>🔥 热门课程 <em>TOP5</em></span>
+                    </div>
+                    <div id="popular-courses" style="margin-top:8px;">
+                        <div class="dash-empty">加载中...</div>
+                    </div>
+                </div>
+                <!-- 满员课程 -->
+                <div class="card anim-2" style="padding:24px 28px;">
+                    <div class="adm-panel-title">
+                        <span>🚫 满员课程</span>
+                        <span class="adm-panel-count" id="full-count">-</span>
+                    </div>
+                    <div id="full-courses" style="margin-top:8px;">
+                        <div class="dash-empty">加载中...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -120,14 +207,17 @@ function renderPopularCourses(courses) {
     for (var i = 0; i < courses.length; i++) {
         var c = courses[i];
         var pct = c.maxStudents > 0 ? Math.round(c.enrolledCount / c.maxStudents * 100) : 0;
-        html += '<div class="dash-schedule-item" style="display:flex;justify-content:space-between;align-items:center;">';
-        html += '<div>';
-        html += '<div class="dash-schedule-name">' + (i + 1) + '. ' + esc(c.courseName) + '</div>';
-        html += '<div class="dash-schedule-meta">' + esc(c.teacherName) + '</div>';
+        var rankClass = i === 0 ? ' rank-gold' : (i === 1 ? ' rank-silver' : (i === 2 ? ' rank-bronze' : ''));
+        var barClass = pct >= 100 ? ' full' : (pct >= 85 ? ' warm' : '');
+        html += '<div class="adm-rank-item">';
+        html += '<div class="adm-rank-num' + rankClass + '">' + (i + 1) + '</div>';
+        html += '<div class="adm-rank-info">';
+        html += '<div class="adm-rank-name">' + esc(c.courseName) + '</div>';
+        html += '<div class="adm-rank-teacher">' + esc(c.teacherName) + '</div>';
         html += '</div>';
-        html += '<div style="text-align:right;">';
-        html += '<span style="font-weight:700;color:var(--pink-deep);">' + c.enrolledCount + '</span>';
-        html += '<span style="font-size:12px;color:var(--text-lighter);"> / ' + c.maxStudents + ' (' + pct + '%)</span>';
+        html += '<div class="adm-rank-stat">';
+        html += '<div class="adm-rank-nums"><strong>' + c.enrolledCount + '</strong><span>/' + c.maxStudents + '</span></div>';
+        html += '<div class="adm-rank-bar"><div class="adm-rank-fill' + barClass + '" style="width:' + pct + '%;"></div></div>';
         html += '</div>';
         html += '</div>';
     }
@@ -136,16 +226,23 @@ function renderPopularCourses(courses) {
 
 function renderFullCourses(courses) {
     var container = document.getElementById('full-courses');
+    document.getElementById('full-count').textContent = courses ? courses.length : 0;
     if (!courses || courses.length === 0) {
-        container.innerHTML = '<div class="dash-empty" style="color:#4CAF50;">暂无满员课程</div>';
+        container.innerHTML = '<div class="dash-empty" style="color:#4CAF50;">暂无满员课程 ✓</div>';
         return;
     }
     var html = '';
     for (var i = 0; i < courses.length; i++) {
         var c = courses[i];
-        html += '<div class="dash-schedule-item">';
-        html += '<div class="dash-schedule-name">' + esc(c.courseName) + '</div>';
-        html += '<div class="dash-schedule-meta">' + esc(c.teacherName) + ' · ' + c.enrolledCount + '/' + c.maxStudents + '人</div>';
+        html += '<div class="adm-full-item">';
+        html += '<div class="adm-full-left">';
+        html += '<span class="adm-full-dot"></span>';
+        html += '<div>';
+        html += '<div class="adm-full-name">' + esc(c.courseName) + '</div>';
+        html += '<div class="adm-full-teacher">' + esc(c.teacherName) + '</div>';
+        html += '</div>';
+        html += '</div>';
+        html += '<span class="adm-full-badge">' + c.enrolledCount + '/' + c.maxStudents + '</span>';
         html += '</div>';
     }
     container.innerHTML = html;
@@ -161,15 +258,73 @@ async function loadDashboard() {
         }
         var d = result.data;
 
+        // 用户统计
         document.getElementById('stat-student').textContent = d.studentCount;
         document.getElementById('stat-teacher').textContent = d.teacherCount;
         document.getElementById('stat-admin').textContent = d.adminCount;
+        var totalUsers = d.studentCount + d.teacherCount + d.adminCount;
+        document.getElementById('stat-total-users').textContent = totalUsers;
+
+        // 横幅
+        document.getElementById('banner-total-users').textContent = totalUsers;
+        document.getElementById('banner-total-courses').textContent = d.courseCount;
+
+        // 课程统计
         document.getElementById('stat-course').textContent = d.courseCount;
         document.getElementById('stat-unassigned').textContent = d.unassignedCourseCount;
         document.getElementById('stat-enrollment').textContent = d.enrollmentCount;
+        // 未分配教师高亮
+        var unassignedCard = document.getElementById('card-unassigned');
+        if (d.unassignedCourseCount > 0) {
+            unassignedCard.classList.add('warn');
+        }
+
+        // 平均选课率
+        var totalCapacity = 0;
+        var totalEnrolled = 0;
+        if (d.popularCourses) {
+            for (var i = 0; i < d.popularCourses.length; i++) {
+                totalCapacity += d.popularCourses[i].maxStudents;
+                totalEnrolled += d.popularCourses[i].enrolledCount;
+            }
+        }
+        if (d.fullCourses) {
+            for (var i = 0; i < d.fullCourses.length; i++) {
+                totalEnrolled += d.fullCourses[i].enrolledCount;
+                totalCapacity += d.fullCourses[i].maxStudents;
+            }
+        }
+        var enrollmentRate = totalCapacity > 0 ? Math.round(totalEnrolled / totalCapacity * 100) : 0;
+        document.getElementById('banner-enrollment-rate').textContent = enrollmentRate + '%';
+
+        // 成绩统计
         document.getElementById('stat-published').textContent = d.publishedGradeCount;
         document.getElementById('stat-draft').textContent = d.draftGradeCount;
         document.getElementById('stat-missing').textContent = d.missingGradeCount;
+        var gradeTotal = d.publishedGradeCount + d.draftGradeCount + d.missingGradeCount;
+        document.getElementById('stat-grade-total').textContent = gradeTotal;
+
+        // 成绩进度条
+        var pubPct = gradeTotal > 0 ? Math.round(d.publishedGradeCount / gradeTotal * 100) : 0;
+        var draftPct = gradeTotal > 0 ? Math.round(d.draftGradeCount / gradeTotal * 100) : 0;
+        var missPct = gradeTotal > 0 ? Math.round(d.missingGradeCount / gradeTotal * 100) : 0;
+        document.getElementById('grade-bar-published').style.width = pubPct + '%';
+        document.getElementById('grade-bar-draft').style.width = draftPct + '%';
+        document.getElementById('grade-bar-missing').style.width = missPct + '%';
+
+        // 成绩完成率
+        document.getElementById('banner-grade-rate').textContent = pubPct + '%';
+        var badge = document.getElementById('grade-completion-badge');
+        if (pubPct >= 90) {
+            badge.textContent = '✓ 基本完成';
+            badge.className = 'adm-section-badge good';
+        } else if (pubPct >= 60) {
+            badge.textContent = '进行中';
+            badge.className = 'adm-section-badge warm';
+        } else {
+            badge.textContent = '需推进';
+            badge.className = 'adm-section-badge bad';
+        }
 
         renderPopularCourses(d.popularCourses);
         renderFullCourses(d.fullCourses);

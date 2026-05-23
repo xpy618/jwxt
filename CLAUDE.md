@@ -11,11 +11,14 @@ JDK 和 Maven 不在 PATH 中，需使用完整路径：
 export JAVA_HOME="/d/Software/JDK17/jdk-17.0.19+10"
 export PATH="$JAVA_HOME/bin:/d/Software/Maven/apache-maven-3.9.9/bin:$PATH"
 
-# 编译
-mvn clean compile
+# 首次运行或 pom.xml 变更后，生成 classpath 文件（之后无需重复）
+mvn dependency:build-classpath -DincludeScope=runtime -Dmdep.outputFile=target/cp.txt
 
-# 启动 (端口 8080)，-o 跳过 Maven 更新检查，-Dmaven.test.skip=true 彻底跳过 test 阶段
-mvn spring-boot:run -o -Dmaven.test.skip=true
+# 编译 + 启动 (端口 8080)，分离编译与运行，跳过 Maven 运行开销
+mvn compile -o -q && java -cp "target/classes;$(cat target/cp.txt)" com.jwxt.JwxtApplication
+
+# 仅编译（代码变更时使用，~3s）
+mvn compile -o -q
 
 # MySQL (无密码)
 /d/Software/MySQL/MySQL\ Server\ 8.0/bin/mysql -u root
@@ -76,7 +79,8 @@ netsh advfirewall firewall add rule name="JWXT 8080" dir=in action=allow protoco
 ```cmd
 set JAVA_HOME=D:\Software\JDK17\jdk-17.0.19+10
 set PATH=%JAVA_HOME%\bin;D:\Software\Maven\apache-maven-3.9.9\bin;%PATH%
-mvn spring-boot:run -o -Dmaven.test.skip=true
+set /p CP=<target\cp.txt
+mvn compile -o -q && java -cp "target\classes;%CP%" com.jwxt.JwxtApplication
 ```
 
 ### 3. 手机热点共享
@@ -212,14 +216,19 @@ Course (1) ──── (N) CourseSlot
 - **CSS**: `static/css/style.css`，樱花粉 (#FFB7C5) 配色方案，CSS 变量统一管理
 - **页面编辑按钮**: 使用 `data-course` 属性 + `JSON.stringify` 传值，避免内联 onclick 参数蔓延和 XSS 风险
 
-**当前版本 v6.1** — 学业进度修复 + 选修课时段重分布 + 体育课调整：
+**当前版本 v6.0** — 管理看板重设计 + 启动流程优化：
+
+- **管理看板重设计**: 新增总览横幅（总用户/课程数/选课率/成绩发布率），统计卡片改为图标色块 + 数字 + 标签布局，4+3 卡片分组。成绩进度从 3 个独立数字合并为分段进度条（绿已发布/橙草稿/红未录入）及完成率徽章。热门课程排行增加金银铜排名着色和选课进度条，满员课程增加红色圆点警示和满员徽章。所有卡片有交错入场动画（`cardSlideUp`）。
+- **启动流程优化**: `mvn spring-boot:run` 改为 `mvn compile -o -q && java -cp "target/classes;$(cat target/cp.txt)" com.jwxt.JwxtApplication`，分离编译与运行，跳过 Maven JVM 双重启动和 testCompile 阶段，代码不变时约 5s 启动。首次需生成 classpath 文件：`mvn dependency:build-classpath -DincludeScope=runtime -Dmdep.outputFile=target/cp.txt`。
+
+**上一版本 v6.1** — 学业进度修复 + 选修课时段重分布 + 体育课调整：
 
 - **学业进度修复**: 必修学分要求改为 18.5（6 门必修课实际总学分），修复进度条始终 100% 的问题。子进度条改用 `<div>` 替代 `<span>` 添加 `display: block`，确保宽度正常渲染。
 - **选修课时段重分布**: 9 门选修课从全部挤在周五第四节改为随机分布到 6 个空闲时段（避开必修和体育课），每时段最多 2 门。
 - **体育课调整**: 所有体育课统一为周三第三节课（14:30-16:10），每门限 10 人。
 - **选修课填满**: 选修课全部选满至 10 人上限，未发布成绩随机打 65-95 分并发布。
 
-**上一版本 v6.0** — 课程卡片网格重设计 + 类别排序 + 批量成绩录入：
+**更早版本 v6.0** — 课程卡片网格重设计 + 类别排序 + 批量成绩录入：
 
 - **课程卡片网格**: 每行 3 张卡片，顶部 4px 类别色条（必修=樱粉、选修=蓝、体育=绿），时段以 `▸ 周一 10:20-12:00` 标签独立展示，选课人数显示为细进度条（≥85% 橙色，满员红色），卡片入场有交错淡入动画（`cardFadeIn`）。预选篮中卡片有粉色光环，冲突卡片有红色光环。
 - **课程类别排序**: `buildCourseVOs()` 中按枚举序数排序（REQUIRED→ELECTIVE→PE），所有课程接口统一返回此顺序。
